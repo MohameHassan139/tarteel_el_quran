@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:quran_library/quran_library.dart';
 import '../../models.dart';
@@ -16,8 +17,6 @@ class MushafViewScreen extends StatefulWidget {
 class _MushafViewScreenState extends State<MushafViewScreen> {
   bool _isLoading = true;
 
-  double _arabicFontSize = 28.0;
-
   Timer? _stopwatchTimer;
 
   List<VerseTiming> _timings = [];
@@ -26,10 +25,15 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
   // The currently active ayah number within this surah (for highlighting)
   int? _activeAyahNumber;
 
+  // Repeat mode: repeat current ayah
+  bool _isRepeatAyah = false;
+
+  // Progress: we track current ayah position for the thin bar
+  double _ayahProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
-    _arabicFontSize = Locator.storage.getArabicFontSize();
     _loadTimings();
     _startStopwatch();
     Locator.audio.activeVerseKeyNotifier.addListener(_onActiveVerseChanged);
@@ -56,7 +60,10 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
 
     if (key == null) {
       if (_activeAyahNumber != null) {
-        setState(() => _activeAyahNumber = null);
+        setState(() {
+          _activeAyahNumber = null;
+          _ayahProgress = 0.0;
+        });
         QuranCtrl.instance.clearExternalHighlights();
       }
       return;
@@ -66,13 +73,33 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
     if (parts.length == 2 && parts[0] == widget.chapter.id.toString()) {
       final ayahNum = int.tryParse(parts[1]);
       if (ayahNum != null && ayahNum != _activeAyahNumber) {
-        setState(() => _activeAyahNumber = ayahNum);
+        setState(() {
+          _activeAyahNumber = ayahNum;
+          // Update thin progress bar based on ayah position
+          _ayahProgress = widget.chapter.versesCount > 0
+              ? (ayahNum / widget.chapter.versesCount).clamp(0.0, 1.0)
+              : 0.0;
+        });
 
         // Resolve the ayah's unique number that QuranCtrl uses for highlighting
         final uq = QuranCtrl.instance
             .getAyahUQBySurahAndAyah(widget.chapter.id, ayahNum);
         if (uq != null) {
           QuranCtrl.instance.setExternalHighlights([uq]);
+        }
+
+        // --- AUTO PAGE TURN ---
+        try {
+          final ayahPage = QuranCtrl.instance.getPageNumberByAyahAndSurahNumber(
+            ayahNum,
+            widget.chapter.id,
+          );
+          final currentPage = QuranCtrl.instance.state.currentPageNumber.value;
+          if (ayahPage != currentPage && ayahPage > 0) {
+            QuranCtrl.instance.jumpToPage(ayahPage - 1);
+          }
+        } catch (_) {
+          // Avoid crashing if page states are not initialized
         }
       }
     }
@@ -134,6 +161,45 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
 
   void _stopPlaySurah() {
     Locator.audio.stop();
+    setState(() {
+      _isRepeatAyah = false;
+      _ayahProgress = 0.0;
+    });
+  }
+
+  /// Go back one ayah
+  void _previousAyah() {
+    if (_activeAyahNumber != null && _activeAyahNumber! > 1) {
+      final targetAyah = _activeAyahNumber! - 1;
+      if (_timings.isNotEmpty) {
+        // verseKey format is "surahId:ayahNum"
+        final targetKey = '${widget.chapter.id}:$targetAyah';
+        final timing = _timings.firstWhere(
+          (t) => t.verseKey == targetKey,
+          orElse: () => _timings.first,
+        );
+        Locator.audio.seekToTiming(timing);
+      }
+    }
+  }
+
+  /// Toggle repeat for current ayah
+  void _toggleRepeat() {
+    setState(() => _isRepeatAyah = !_isRepeatAyah);
+    Locator.audio.setRepeatCurrentAyah(_isRepeatAyah);
+  }
+
+  /// Helper: reciter display name from reciter ID
+  String _getReciterName() {
+    final id = Locator.storage.getSelectedReciterId();
+    const names = {
+      7: 'مشاري العفاسي',
+      6: 'محمود الحصري',
+      2: 'عبد الباسط عبد الصمد',
+      9: 'المنشاوي',
+      1: 'عبدالله المطرود',
+    };
+    return names[id] ?? 'قارئ مختار';
   }
 
   /// Build the Verse model on the fly for the tafseer sheet.
@@ -207,7 +273,7 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
 
           // ── Floating Audio Controls ───────────────────────────────────
           Positioned(
-            bottom: 24,
+            bottom: 12,
             left: 0,
             right: 0,
             child: Center(child: _buildAudioBar(isDark)),
@@ -221,123 +287,196 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
     return ValueListenableBuilder<bool>(
       valueListenable: Locator.audio.isPlayingNotifier,
       builder: (context, isPlaying, _) {
-        final isThisSurah =
-            Locator.audio.activeChapterNotifier.value?.id == widget.chapter.id;
-        final active = isPlaying && isThisSurah;
+        return ValueListenableBuilder<Chapter?>(
+          valueListenable: Locator.audio.activeChapterNotifier,
+          builder: (context, activeChapter, _) {
+            final isThisSurah = activeChapter?.id == widget.chapter.id;
+            final isLoaded = isThisSurah;
+            final isCurrentlyPlaying = isPlaying && isThisSurah;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF1E1A10).withValues(alpha: 0.95)
-                : const Color(0xFFFFF8E7).withValues(alpha: 0.97),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: const Color(0xFFC19A6B).withValues(alpha: 0.4),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Surah name
-              Text(
-                widget.chapter.nameArabic,
-                style: const TextStyle(
-                  fontFamily: 'UthmanicHafs',
-                  fontSize: 18,
-                  color: Color(0xFFC19A6B),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Font decrease
-              _BarButton(
-                icon: Icons.text_decrease,
-                onTap: () {
-                  setState(() {
-                    _arabicFontSize = (_arabicFontSize - 2).clamp(18.0, 52.0);
-                  });
-                  Locator.storage.setArabicFontSize(_arabicFontSize);
-                },
-              ),
-              const SizedBox(width: 8),
-
-              // Font increase
-              _BarButton(
-                icon: Icons.text_increase,
-                onTap: () {
-                  setState(() {
-                    _arabicFontSize = (_arabicFontSize + 2).clamp(18.0, 52.0);
-                  });
-                  Locator.storage.setArabicFontSize(_arabicFontSize);
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Play / Stop
-              GestureDetector(
-                onTap: active ? _stopPlaySurah : _startPlaySurah,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC19A6B),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFC19A6B).withValues(alpha: 0.4),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    active ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ),
-
-              // Active verse indicator
-              if (active && _activeAyahNumber != null) ...[
-                const SizedBox(width: 12),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: MediaQuery.of(context).size.width * 0.94,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
-                    key: ValueKey(_activeAyahNumber),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFC19A6B).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(16),
+                      color: isDark
+                          ? const Color(0xFF181510).withValues(alpha: 0.85)
+                          : const Color(0xFFFCF7EE).withValues(alpha: 0.90),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFC19A6B).withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.graphic_eq, size: 14, color: Color(0xFFC19A6B)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'آية $_activeAyahNumber',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFFC19A6B),
-                            fontWeight: FontWeight.bold,
+                        // ── Thinner progress streamline (1.2px) ──────────────
+                        SizedBox(
+                          height: 1.2,
+                          child: LinearProgressIndicator(
+                            value: isLoaded ? _ayahProgress : 0.0,
+                            backgroundColor: isLoaded
+                                ? const Color(0xFFC19A6B).withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isLoaded
+                                  ? const Color(0xFFC19A6B)
+                                  : Colors.transparent,
+                            ),
+                            minHeight: 1.2,
+                          ),
+                        ),
+
+                        // ── Main Layout ───────────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7, // Thinner vertical padding
+                          ),
+                          child: Row(
+                            children: [
+                              // Left side: Reciter name & info
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _getReciterName(),
+                                          style: TextStyle(
+                                            fontSize: 13, // Thinner text
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : const Color(0xFF8B6914),
+                                            fontFamily: 'UthmanicHafs',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          isLoaded && _activeAyahNumber != null
+                                              ? 'آية $_activeAyahNumber من ${widget.chapter.versesCount}'
+                                              : 'تلاوة سورة ${widget.chapter.nameArabic}',
+                                          style: TextStyle(
+                                            fontSize: 10, // Thinner text
+                                            color: isDark
+                                                ? Colors.white.withValues(alpha: 0.5)
+                                                : Colors.black.withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (isCurrentlyPlaying) ...[
+                                      const SizedBox(width: 6),
+                                      _EqualizerIcon(),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                              // Vertical divider
+                              Container(
+                                height: 18, // Thinner divider
+                                width: 1,
+                                color: const Color(0xFFC19A6B).withValues(alpha: 0.2),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Right side: Audio controls
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Previous Ayah
+                                  _BarButton(
+                                    icon: Icons.skip_previous_rounded,
+                                    enabled: isLoaded && (_activeAyahNumber ?? 1) > 1,
+                                    onTap: _previousAyah,
+                                  ),
+                                  const SizedBox(width: 4),
+
+                                  // Play / Pause Button
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (isCurrentlyPlaying) {
+                                        Locator.audio.pause();
+                                      } else if (isLoaded) {
+                                        Locator.audio.resume();
+                                      } else {
+                                        _startPlaySurah();
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 36, // Thinner button
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(0xFFD4AF37),
+                                            const Color(0xFFC19A6B),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFC19A6B).withValues(alpha: 0.25),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        isCurrentlyPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        color: Colors.white,
+                                        size: 20, // Thinner icon
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+
+                                  // Stop Button (Resets completely)
+                                  _BarButton(
+                                    icon: Icons.stop_rounded,
+                                    enabled: isLoaded,
+                                    onTap: _stopPlaySurah,
+                                  ),
+                                  const SizedBox(width: 4),
+
+                                  // Repeat Ayah Toggle
+                                  _BarButton(
+                                    icon: Icons.repeat_one_rounded,
+                                    enabled: true,
+                                    active: _isRepeatAyah,
+                                    onTap: _toggleRepeat,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ],
-            ],
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -347,25 +486,110 @@ class _MushafViewScreenState extends State<MushafViewScreen> {
 class _BarButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final bool enabled;
+  final bool active;
 
-  const _BarButton({required this.icon, required this.onTap});
+  const _BarButton({
+    required this.icon,
+    required this.onTap,
+    this.enabled = true,
+    this.active = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final color = active
+        ? const Color(0xFFC19A6B)
+        : enabled
+            ? const Color(0xFFC19A6B).withValues(alpha: 0.85)
+            : const Color(0xFFC19A6B).withValues(alpha: 0.25);
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
-          color: const Color(0xFFC19A6B).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
+          color: active
+              ? const Color(0xFFC19A6B).withValues(alpha: 0.22)
+              : const Color(0xFFC19A6B).withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(8),
+          border: active
+              ? Border.all(
+                  color: const Color(0xFFC19A6B).withValues(alpha: 0.6),
+                  width: 1,
+                )
+              : null,
         ),
-        child: Icon(icon, size: 18, color: const Color(0xFFC19A6B)),
+        child: Icon(icon, size: 15, color: color),
       ),
     );
   }
 }
+
+// ─── Tiny animated equalizer bars ─────────────────────────────────────────
+class _EqualizerIcon extends StatefulWidget {
+  @override
+  State<_EqualizerIcon> createState() => _EqualizerIconState();
+}
+
+class _EqualizerIconState extends State<_EqualizerIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late List<Animation<double>> _bars;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    _bars = List.generate(3, (i) {
+      final begin = 0.3 + (i * 0.2);
+      return Tween<double>(begin: begin, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: Interval(i * 0.2, 0.6 + i * 0.2, curve: Curves.easeInOut),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(3, (i) {
+            return Container(
+              width: 2.2,
+              height: 10 * _bars[i].value,
+              margin: const EdgeInsets.symmetric(horizontal: 1.2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFC19A6B),
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+
 
 // ─────────────────────────────────────────────────────────────────
 // Ayah Details Bottom Sheet (Tafseer + Info)

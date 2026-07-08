@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:quran_library/quran_library.dart';
+import 'package:get/get.dart';
 import 'core/storage_service.dart';
 import 'core/api_service.dart';
 import 'core/download_service.dart';
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
           valueListenable: Locator.languageNotifier,
           builder: (context, appLanguage, child) {
             return MaterialApp(
+              navigatorKey: Get.key,
               title: appLanguage == 'ar' ? 'ترتيل القرآن' : 'Tarteel Al-Quran',
               debugShowCheckedModeBanner: false,
 

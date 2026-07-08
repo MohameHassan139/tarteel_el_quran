@@ -36,6 +36,10 @@ class AudioService {
   final ValueNotifier<int> verseRepeatNotifier = ValueNotifier<int>(0);
   final ValueNotifier<int> rangeRepeatNotifier = ValueNotifier<int>(0);
 
+  // Single-ayah repeat mode (for mushaf screen)
+  bool _repeatSingleAyah = false;
+  VerseTiming? _repeatAyahTiming;
+
   StreamSubscription? _positionSub;
   StreamSubscription? _playerStateSub;
   StreamSubscription? _durationSub;
@@ -136,6 +140,17 @@ class AudioService {
     await _player.seek(position);
   }
 
+  /// Seek directly to a specific VerseTiming (used for previous-ayah button).
+  Future<void> seekToTiming(VerseTiming timing) async {
+    await _player.seek(Duration(milliseconds: timing.timestampFrom));
+  }
+
+  /// Enable or disable single-ayah repeat mode.
+  void setRepeatCurrentAyah(bool enabled) {
+    _repeatSingleAyah = enabled;
+    if (!enabled) _repeatAyahTiming = null;
+  }
+
   VerseTiming? _getTimingForKey(String key) {
     for (var t in _timings) {
       if (t.verseKey == key) return t;
@@ -151,7 +166,7 @@ class AudioService {
   }
 
   /// Synchronize active verse with play position, and handle looping.
-  void _updateActiveVerse(Duration position) {
+  Future<void> _updateActiveVerse(Duration position) async {
     if (_timings.isEmpty) return;
     final ms = position.inMilliseconds;
 
@@ -169,6 +184,20 @@ class AudioService {
 
     if (activeVerseKeyNotifier.value != activeKey) {
       activeVerseKeyNotifier.value = activeKey;
+
+      // Track timing for single-ayah repeat
+      if (_repeatSingleAyah) {
+        _repeatAyahTiming = activeTiming;
+      }
+    }
+
+    // Handle single-ayah repeat (mushaf screen)
+    if (_repeatSingleAyah && _repeatAyahTiming != null) {
+      final repTiming = _repeatAyahTiming!;
+      if (ms >= repTiming.timestampTo - 150) {
+        await _player.seek(Duration(milliseconds: repTiming.timestampFrom));
+        return;
+      }
     }
 
     // Process Hifz Looping if active

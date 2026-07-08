@@ -251,4 +251,25 @@ class ApiService {
       rethrow;
     }
   }
+
+  /// Fetch and cache all Tafsir texts for a specific Chapter (Surah) in one request.
+  Future<void> fetchAndCacheChapterTafsir(int chapterId, {int tafsirId = 16}) async {
+    try {
+      final response = await _getWithAuth('/content/api/v4/tafsirs/$tafsirId/by_chapter/$chapterId');
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final tafsirList = data['tafsirs'] as List? ?? [];
+      
+      for (final item in tafsirList) {
+        final map = item as Map<String, dynamic>;
+        final verseKey = map['verse_key'] as String?;
+        final text = map['text'] as String?;
+        if (verseKey != null && text != null) {
+          await _storageService.cacheTafsir(tafsirId, verseKey, text);
+        }
+      }
+    } catch (_) {
+      // Fallback or ignore for background downloads
+      rethrow;
+    }
+  }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'storage_service.dart';
+import '../main.dart';
 
 class DownloadService {
   final StorageService _storageService;
@@ -72,6 +73,19 @@ class DownloadService {
 
         _activeProgress.remove(taskKey);
         _progressController.add(Map.from(_activeProgress));
+
+        // Start background download of Tafsirs (non-blocking)
+        unawaited(() async {
+          try {
+            final api = Locator.api;
+            // Cache Tafsir IDs: 16 (Al-Muyassar), 91 (Ibn Kathir), 131 (Saheeh International)
+            await api.fetchAndCacheChapterTafsir(chapterId, tafsirId: 16);
+            await api.fetchAndCacheChapterTafsir(chapterId, tafsirId: 91);
+            await api.fetchAndCacheChapterTafsir(chapterId, tafsirId: 131);
+          } catch (_) {
+            // Fail silently to avoid breaking anything if network drops mid-way
+          }
+        }());
       } catch (e) {
         await sink.close();
         client.close();
