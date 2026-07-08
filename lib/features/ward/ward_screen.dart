@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'ward_controller.dart';
+import '../../core/app_colors.dart';
 
 class WardScreen extends GetView<WardController> {
   const WardScreen({super.key});
@@ -13,10 +14,10 @@ class WardScreen extends GetView<WardController> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFC19A6B),
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
               onPrimary: Colors.white,
-              surface: Color(0xFF1E1E1E),
+              surface: AppColors.cardDark,
               onSurface: Colors.white,
             ),
           ),
@@ -30,7 +31,7 @@ class WardScreen extends GetView<WardController> {
       Get.snackbar(
         'تنبيه الورد',
         'تم جدولة المنبه اليومي في تمام الساعة ${picked.format(context)}',
-        backgroundColor: const Color(0xFFC19A6B),
+        backgroundColor: AppColors.primary,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -69,7 +70,7 @@ class WardScreen extends GetView<WardController> {
             children: [
               // Accountability Goal Card
               Card(
-                color: const Color(0xFF1E1E1E),
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -96,8 +97,8 @@ class WardScreen extends GetView<WardController> {
                             child: CircularProgressIndicator(
                               value: progress.clamp(0.0, 1.0),
                               strokeWidth: 12,
-                              backgroundColor: Colors.grey[850],
-                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                              backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                             ),
                           ),
                           Column(
@@ -105,10 +106,10 @@ class WardScreen extends GetView<WardController> {
                             children: [
                               Text(
                                 '$completedMinutes',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 44,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
                               Text(
@@ -129,7 +130,7 @@ class WardScreen extends GetView<WardController> {
                             ? "أحسنت! تم إنجاز الورد اليومي بنجاح 🎉"
                             : "متبقي $remainingMinutes دقيقة لإنجاز الورد اليومي.",
                         style: TextStyle(
-                          color: remainingMinutes <= 0 ? const Color(0xFFC19A6B) : Colors.white70,
+                          color: remainingMinutes <= 0 ? AppColors.primary : (isDark ? Colors.white70 : Colors.black54),
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -150,11 +151,11 @@ class WardScreen extends GetView<WardController> {
               // Goal & Notification Configuration
               const Text(
                 'إعدادات الورد والمنبه',
-                style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
               ),
               const SizedBox(height: 12),
               Card(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
@@ -162,7 +163,7 @@ class WardScreen extends GetView<WardController> {
                       title: const Text('المدة اليومية المستهدفة'),
                       trailing: DropdownButton<int>(
                         value: goal.targetMinutes,
-                        dropdownColor: const Color(0xFF1E1E1E),
+                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         items: [10, 15, 20, 30, 45, 60].map((e) {
                           return DropdownMenuItem(value: e, child: Text('$e دقيقة'));
                         }).toList(),
@@ -176,11 +177,11 @@ class WardScreen extends GetView<WardController> {
                       title: const Text('وقت التنبيه اليومي'),
                       subtitle: const Text('تذكير في حال عدم إكمال الورد'),
                       trailing: ActionChip(
-                        backgroundColor: const Color(0xFFC19A6B).withOpacity(0.15),
-                        side: const BorderSide(color: Color(0xFFC19A6B)),
+                        backgroundColor: AppColors.primary.withOpacity(0.15),
+                        side: const BorderSide(color: AppColors.primary),
                         label: Text(
                           _formatTime(goal.reminderHour, goal.reminderMinute),
-                          style: const TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                         ),
                         onPressed: () => _pickTime(context),
                       ),
@@ -193,13 +194,13 @@ class WardScreen extends GetView<WardController> {
               // Reading History
               const Text(
                 'سجل القراءة السابق',
-                style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
               ),
               const SizedBox(height: 12),
               Obx(() {
                 if (controller.history.isEmpty) {
                   return Card(
-                    color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                    color: isDark ? AppColors.cardDark : AppColors.cardLight,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     child: const Padding(
                       padding: EdgeInsets.all(20.0),
@@ -213,7 +214,7 @@ class WardScreen extends GetView<WardController> {
                 }
 
                 return Card(
-                  color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                  color: isDark ? AppColors.cardDark : AppColors.cardLight,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -225,7 +226,7 @@ class WardScreen extends GetView<WardController> {
                           title: Text(entry.key),
                           trailing: Text(
                             '$readMins دقيقة',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC19A6B)),
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                           ),
                         );
                       }).toList(),

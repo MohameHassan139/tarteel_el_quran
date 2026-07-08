@@ -4,6 +4,7 @@ import '../../core/storage_service.dart';
 import '../../core/download_service.dart';
 import '../shared/widgets/bottom_player.dart';
 import 'audio_hub_controller.dart';
+import '../../core/app_colors.dart';
 
 class AudioHubScreen extends GetView<AudioHubController> {
   const AudioHubScreen({super.key});
@@ -28,7 +29,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Card(
-                  color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                  color: isDark ? AppColors.cardDark : AppColors.cardLight,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -51,7 +52,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                 children: [
                                   DropdownButton<int>(
                                     value: baseReciterId,
-                                    dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                    dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                                     style: TextStyle(
                                       color: isDark ? Colors.white : Colors.black87,
                                       fontSize: 14,
@@ -74,7 +75,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                     const SizedBox(width: 8),
                                     DropdownButton<String>(
                                       value: storage.getSelectedStyle(),
-                                      dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                      dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                                       style: TextStyle(
                                         color: isDark ? Colors.white : Colors.black87,
                                         fontSize: 14,
@@ -116,7 +117,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                         onPressed: () => controller.cancelBulkDownload(),
                                       )
                                     : ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC19A6B)),
+                                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                                         icon: const Icon(Icons.download, color: Colors.white),
                                         label: const Text('تحميل الكل', style: TextStyle(color: Colors.white)),
                                         onPressed: controller.chapters.isEmpty ? null : () => controller.startBulkDownload(),
@@ -145,9 +146,9 @@ class AudioHubScreen extends GetView<AudioHubController> {
                   controller: controller.searchController,
                   decoration: InputDecoration(
                     hintText: 'ابحث عن السورة للاستماع إليها...',
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFFC19A6B)),
+                    prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                    fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                     contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
@@ -162,7 +163,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                   if (controller.isLoading.value) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
                     );
                   }
@@ -179,7 +180,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             Text(controller.errorMessage.value, style: const TextStyle(color: Colors.grey)),
                             const SizedBox(height: 20),
                             ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC19A6B)),
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                               onPressed: () => controller.loadChapters(),
                               child: const Text('إعادة المحاولة', style: TextStyle(color: Colors.white)),
                             ),
@@ -209,14 +210,14 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             width: 38,
                             height: 38,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFC19A6B).withOpacity(0.15),
+                              color: AppColors.primary.withOpacity(0.15),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
                               child: Text(
                                 '${chapter.id}',
                                 style: const TextStyle(
-                                  color: Color(0xFFC19A6B),
+                                  color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -232,13 +233,13 @@ class AudioHubScreen extends GetView<AudioHubController> {
                               ),
                             ],
                           ),
-                          subtitle: Text(chapter.nameArabic, style: const TextStyle(fontFamily: 'UthmanicHafs', fontSize: 16, color: Color(0xFFC19A6B))),
+                          subtitle: Text(chapter.nameArabic, style: const TextStyle(fontFamily: 'UthmanicHafs', fontSize: 16, color: AppColors.primary)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Listen Play button
                               IconButton(
-                                icon: const Icon(Icons.play_circle_fill, color: Color(0xFFC19A6B), size: 30),
+                                icon: const Icon(Icons.play_circle_fill, color: AppColors.primary, size: 30),
                                 onPressed: () => controller.playSurah(chapter),
                               ),
                               const SizedBox(width: 8),
@@ -253,7 +254,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                     child: CircularProgressIndicator(
                                       value: progress,
                                       strokeWidth: 3,
-                                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                                     ),
                                   );
                                 }

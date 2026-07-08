@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../routes/app_routes.dart';
 import '../shared/widgets/bottom_player.dart';
 import 'home_controller.dart';
+import '../../core/app_colors.dart';
 
 class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});
@@ -19,7 +20,7 @@ class HomeScreen extends GetView<HomeController> {
     
     return Card(
       elevation: 4,
-      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3EFE6),
+      color: isDark ? AppColors.cardDark : AppColors.cardLight,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => Get.toNamed(routeName),
@@ -89,7 +90,7 @@ class HomeScreen extends GetView<HomeController> {
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFC19A6B),
+                              color: AppColors.primary,
                             ),
                           ),
                           SizedBox(height: 4),
@@ -105,14 +106,14 @@ class HomeScreen extends GetView<HomeController> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.settings, color: Color(0xFFC19A6B), size: 26),
+                            icon: const Icon(Icons.settings, color: AppColors.primary, size: 26),
                             onPressed: () => Get.toNamed(AppRoutes.SETTINGS),
                           ),
                           const SizedBox(width: 8),
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color(0xFFC19A6B).withOpacity(0.15),
-                            child: const Icon(Icons.stars, color: Color(0xFFC19A6B), size: 20),
+                            backgroundColor: AppColors.primary.withOpacity(0.15),
+                            child: const Icon(Icons.stars, color: AppColors.primary, size: 20),
                           ),
                         ],
                       ),
@@ -128,7 +129,7 @@ class HomeScreen extends GetView<HomeController> {
                     final isDark = controller.isDarkMode();
 
                     return Card(
-                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3EFE6),
+                      color: isDark ? AppColors.cardDark : AppColors.cardLight,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       elevation: 6,
                       child: Padding(
@@ -149,7 +150,7 @@ class HomeScreen extends GetView<HomeController> {
                                 Text(
                                   '$completedMinutes من ${goal.targetMinutes} دقيقة',
                                   style: const TextStyle(
-                                    color: Color(0xFFC19A6B),
+                                    color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
                                   ),
@@ -163,7 +164,7 @@ class HomeScreen extends GetView<HomeController> {
                                 value: progress.clamp(0.0, 1.0),
                                 minHeight: 8,
                                 backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
-                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -172,7 +173,7 @@ class HomeScreen extends GetView<HomeController> {
                                   ? 'أحسنت! لقد أكملت وردك لليوم 🎉'
                                   : 'متبقي ${(goal.targetMinutes - completedMinutes).clamp(0, goal.targetMinutes)} دقيقة لإنجاز هدف اليوم.',
                               style: TextStyle(
-                                color: progress >= 1.0 ? const Color(0xFFC19A6B) : Colors.grey,
+                                color: progress >= 1.0 ? AppColors.primary : Colors.grey,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -190,7 +191,7 @@ class HomeScreen extends GetView<HomeController> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFC19A6B),
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -209,7 +210,7 @@ class HomeScreen extends GetView<HomeController> {
                         title: 'المصحف الشريف',
                         subtitle: 'قراءة السور وتصفح التفسير',
                         icon: Icons.menu_book,
-                        color: const Color(0xFFC19A6B),
+                        color: AppColors.primary,
                         routeName: AppRoutes.MUSHAF,
                       ),
                       _buildGridItem(

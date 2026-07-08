@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quran_library/quran_library.dart';
 import 'settings_controller.dart';
+import '../../core/app_colors.dart';
 
 class SettingsScreen extends GetView<SettingsController> {
   const SettingsScreen({super.key});
@@ -27,15 +28,15 @@ class SettingsScreen extends GetView<SettingsController> {
             children: [
               // Quran Fonts Download Card
               Card(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
-                  leading: const Icon(Icons.font_download_outlined, color: Color(0xFFC19A6B)),
+                  leading: const Icon(Icons.font_download_outlined, color: AppColors.primary),
                   title: const Text('خطوط المصحف الحقيقية', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: const Text('تحميل خطوط المصحف الشريف للعرض الأصيل'),
                   trailing: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFC19A6B),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -53,7 +54,7 @@ class SettingsScreen extends GetView<SettingsController> {
               const SizedBox(height: 16),
               // Settings Card
               Card(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
@@ -63,7 +64,7 @@ class SettingsScreen extends GetView<SettingsController> {
                       subtitle: const Text('مصدر تلاوة الصوتيات (أونلاين/أوفلاين)'),
                       trailing: DropdownButton<int>(
                         value: reciterId,
-                        dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                           fontSize: 16,
@@ -90,7 +91,7 @@ class SettingsScreen extends GetView<SettingsController> {
                             : 'مرتّل أو مجوّد (بالأحكام والأنغام)'),
                         trailing: DropdownButton<String>(
                           value: style,
-                          dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
                           style: TextStyle(
                             color: isDark ? Colors.white : Colors.black87,
                             fontSize: 16,
@@ -118,7 +119,7 @@ class SettingsScreen extends GetView<SettingsController> {
                       title: const Text('المظهر الداكن'),
                       subtitle: const Text('تفعيل الخلفيات الداكنة لراحة العينين'),
                       value: isDark,
-                      activeColor: const Color(0xFFC19A6B),
+                      activeColor: AppColors.primary,
                       onChanged: (val) => controller.toggleTheme(val),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -128,7 +129,7 @@ class SettingsScreen extends GetView<SettingsController> {
                       subtitle: Text(lang == 'ar' ? 'العربية' : 'English'),
                       trailing: DropdownButton<String>(
                         value: lang,
-                        dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                           fontSize: 16,
@@ -150,7 +151,7 @@ class SettingsScreen extends GetView<SettingsController> {
                       title: const Text('اختبار إشعارات المنبه'),
                       subtitle: const Text('محاكاة فحص إنجاز الورد اليومي وإرسال إشعار فوري'),
                       trailing: IconButton(
-                        icon: const Icon(Icons.notification_important, color: Color(0xFFC19A6B)),
+                        icon: const Icon(Icons.notification_important, color: AppColors.primary),
                         onPressed: () => controller.triggerTestNotification(),
                       ),
                     ),
@@ -161,16 +162,16 @@ class SettingsScreen extends GetView<SettingsController> {
               
               // Note about background execution
               Card(
-                color: const Color(0xFFC19A6B).withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFC19A6B), width: 0.5),
+                  side: const BorderSide(color: AppColors.primary, width: 0.5),
                 ),
                 child: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: Color(0xFFC19A6B)),
+                      Icon(Icons.info_outline, color: AppColors.primary),
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(

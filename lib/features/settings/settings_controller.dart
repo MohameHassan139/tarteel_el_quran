@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/storage_service.dart';
 import '../../core/reminder_service.dart';
+import '../../core/app_colors.dart';
 
 class SettingsController extends GetxController {
   final StorageService _storage = Get.find<StorageService>();
@@ -35,7 +36,7 @@ class SettingsController extends GetxController {
     Get.snackbar(
       'القارئ المفضل',
       'تم تحديث القارئ المفضل بنجاح',
-      backgroundColor: const Color(0xFFC19A6B),
+      backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );
@@ -54,7 +55,7 @@ class SettingsController extends GetxController {
     Get.snackbar(
       'نمط التلاوة',
       'تم اختيار رواية/نمط التلاوة: $styleAr',
-      backgroundColor: const Color(0xFFC19A6B),
+      backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );
@@ -77,7 +78,7 @@ class SettingsController extends GetxController {
     Get.snackbar(
       'إشعار تجريبي',
       'تم إرسال تنبيه تجريبي! تحقق من لوحة الإشعارات.',
-      backgroundColor: const Color(0xFFC19A6B),
+      backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );

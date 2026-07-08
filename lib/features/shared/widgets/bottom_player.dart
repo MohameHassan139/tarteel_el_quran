@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/audio_service.dart';
 import '../../../models.dart';
+import '../../../core/app_colors.dart';
 
 class BottomPlayer extends StatelessWidget {
   const BottomPlayer({super.key});
@@ -25,7 +26,7 @@ class BottomPlayer extends StatelessWidget {
         margin: const EdgeInsets.all(12),
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFF1E1E1E), // Soft dark color
+        color: Get.isDarkMode ? AppColors.cardDark : AppColors.cardLight, // Soft theme color
         child: InkWell(
           onTap: () => _showExpandedPlayer(context, chapter),
           borderRadius: BorderRadius.circular(16),
@@ -36,7 +37,7 @@ class BottomPlayer extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.music_note, color: Color(0xFFC19A6B)), // Soft Gold
+                    const Icon(Icons.music_note, color: AppColors.primary), // Soft Theme color
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -44,8 +45,8 @@ class BottomPlayer extends StatelessWidget {
                         children: [
                           Text(
                             'سورة ${chapter.nameSimple}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Get.isDarkMode ? Colors.white : Colors.black87,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -55,8 +56,8 @@ class BottomPlayer extends StatelessWidget {
                             final text = verseKey != null ? 'الآية $verseKey' : 'جاري التحميل...';
                             return Text(
                               text,
-                              style: const TextStyle(
-                                color: Colors.grey,
+                              style: TextStyle(
+                                color: Get.isDarkMode ? Colors.grey : Colors.black54,
                                 fontSize: 13,
                               ),
                             );
@@ -69,7 +70,7 @@ class BottomPlayer extends StatelessWidget {
                       return IconButton(
                         icon: Icon(
                           isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                          color: const Color(0xFFC19A6B),
+                          color: AppColors.primary,
                           size: 38,
                         ),
                         onPressed: () {
@@ -82,7 +83,7 @@ class BottomPlayer extends StatelessWidget {
                       );
                     }),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.grey),
+                      icon: Icon(Icons.close, color: Get.isDarkMode ? Colors.grey : Colors.black54),
                       onPressed: () => audio.stop(),
                     ),
                   ],
@@ -100,7 +101,7 @@ class BottomPlayer extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: progress.clamp(0.0, 1.0),
                       backgroundColor: Colors.grey.withOpacity(0.3),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                       minHeight: 3,
                     ),
                   );
@@ -119,7 +120,7 @@ class BottomPlayer extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Get.isDarkMode ? AppColors.bgDark : AppColors.bgLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -133,7 +134,7 @@ class BottomPlayer extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[800],
+                  color: Get.isDarkMode ? Colors.grey[800] : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -144,15 +145,15 @@ class BottomPlayer extends StatelessWidget {
                 style: const TextStyle(
                   fontFamily: 'UthmanicHafs',
                   fontSize: 42,
-                  color: Color(0xFFC19A6B),
+                  color: AppColors.primary,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 'سورة ${chapter.nameSimple}',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Get.isDarkMode ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.bold,
                   fontSize: 24,
                 ),
@@ -160,7 +161,7 @@ class BottomPlayer extends StatelessWidget {
               Text(
                 chapter.translatedName,
                 style: TextStyle(
-                  color: Colors.grey[400],
+                  color: Get.isDarkMode ? Colors.grey[400] : Colors.black54,
                   fontSize: 16,
                 ),
               ),
@@ -171,13 +172,13 @@ class BottomPlayer extends StatelessWidget {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
+                    color: Get.isDarkMode ? AppColors.cardDark : AppColors.cardLight,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     verseKey != null ? 'تلاوة الآية: $verseKey' : 'جاري التحميل والتزامن...',
-                    style: const TextStyle(
-                      color: Color(0xFFC19A6B),
+                    style: TextStyle(
+                      color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
@@ -196,9 +197,9 @@ class BottomPlayer extends StatelessWidget {
                   children: [
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: const Color(0xFFC19A6B),
-                        inactiveTrackColor: Colors.grey[800],
-                        thumbColor: const Color(0xFFC19A6B),
+                        activeTrackColor: AppColors.primary,
+                        inactiveTrackColor: Get.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        thumbColor: AppColors.primary,
                         trackHeight: 4.0,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
                       ),
@@ -217,11 +218,11 @@ class BottomPlayer extends StatelessWidget {
                         children: [
                           Text(
                             _formatDuration(position),
-                            style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54, fontSize: 13),
                           ),
                           Text(
                             _formatDuration(duration),
-                            style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54, fontSize: 13),
                           ),
                         ],
                       ),
@@ -236,7 +237,7 @@ class BottomPlayer extends StatelessWidget {
                 children: [
                   IconButton(
                     iconSize: 32,
-                    icon: const Icon(Icons.replay_10, color: Colors.white),
+                    icon: Icon(Icons.replay_10, color: Get.isDarkMode ? Colors.white : Colors.black87),
                     onPressed: () {
                       final newPos = audio.position.value - const Duration(seconds: 10);
                       audio.seek(newPos < Duration.zero ? Duration.zero : newPos);
@@ -249,7 +250,7 @@ class BottomPlayer extends StatelessWidget {
                       iconSize: 72,
                       icon: Icon(
                         isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                        color: const Color(0xFFC19A6B),
+                        color: AppColors.primary,
                       ),
                       onPressed: () {
                         if (isPlaying) {
@@ -263,7 +264,7 @@ class BottomPlayer extends StatelessWidget {
                   const SizedBox(width: 16),
                   IconButton(
                     iconSize: 32,
-                    icon: const Icon(Icons.forward_10, color: Colors.white),
+                    icon: Icon(Icons.forward_10, color: Get.isDarkMode ? Colors.white : Colors.black87),
                     onPressed: () {
                       final newPos = audio.position.value + const Duration(seconds: 10);
                       final maxDur = audio.duration.value;

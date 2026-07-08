@@ -7,6 +7,7 @@ import 'core/api_service.dart';
 import 'core/download_service.dart';
 import 'core/audio_service.dart';
 import 'core/reminder_service.dart';
+import 'core/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'routes/app_pages.dart';
 
@@ -58,13 +59,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: false, // Required by quran_library
         brightness: Brightness.light,
-        primaryColor: const Color(0xFFC19A6B),
-        scaffoldBackgroundColor: const Color(0xFFFAF8F5),
-        cardColor: const Color(0xFFF4EFE6),
+        primaryColor: AppColors.primary,
+        scaffoldBackgroundColor: AppColors.bgLight,
+        cardColor: AppColors.cardLight,
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFFC19A6B),
-          secondary: Color(0xFFE5DCD0),
-          surface: Color(0xFFF4EFE6),
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          surface: AppColors.cardLight,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -83,13 +84,13 @@ class MyApp extends StatelessWidget {
       darkTheme: ThemeData(
         useMaterial3: false, // Required by quran_library
         brightness: Brightness.dark,
-        primaryColor: const Color(0xFFC19A6B),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        cardColor: const Color(0xFF1E1E1E),
+        primaryColor: AppColors.primary,
+        scaffoldBackgroundColor: AppColors.bgDark,
+        cardColor: AppColors.cardDark,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFC19A6B),
-          secondary: Color(0xFF2C2C2C),
-          surface: Color(0xFF1E1E1E),
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          surface: AppColors.cardDark,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,

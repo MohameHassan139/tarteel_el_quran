@@ -4,6 +4,7 @@ import '../../routes/app_routes.dart';
 import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
 import 'mushaf_controller.dart';
+import '../../core/app_colors.dart';
 
 class MushafScreen extends GetView<MushafController> {
   const MushafScreen({super.key});
@@ -32,9 +33,9 @@ class MushafScreen extends GetView<MushafController> {
               controller: controller.searchController,
               decoration: InputDecoration(
                 hintText: 'ابحث عن السورة...',
-                prefixIcon: const Icon(Icons.search, color: Color(0xFFC19A6B)),
+                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -49,7 +50,7 @@ class MushafScreen extends GetView<MushafController> {
               if (controller.isLoading.value) {
                 return const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 );
               }
@@ -71,7 +72,7 @@ class MushafScreen extends GetView<MushafController> {
                         const SizedBox(height: 20),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFC19A6B),
+                            backgroundColor: AppColors.primary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -103,14 +104,14 @@ class MushafScreen extends GetView<MushafController> {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFC19A6B).withOpacity(0.15),
+                        color: AppColors.primary.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text(
                           '${chapter.id}',
                           style: const TextStyle(
-                            color: Color(0xFFC19A6B),
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -151,7 +152,7 @@ class MushafScreen extends GetView<MushafController> {
                           style: const TextStyle(
                             fontFamily: 'UthmanicHafs',
                             fontSize: 20,
-                            color: Color(0xFFC19A6B),
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -168,7 +169,7 @@ class MushafScreen extends GetView<MushafController> {
                                 value: progress,
                                 strokeWidth: 3,
                                 valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFFC19A6B),
+                                  AppColors.primary,
                                 ),
                               ),
                             );

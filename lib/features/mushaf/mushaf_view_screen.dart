@@ -6,6 +6,7 @@ import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../models.dart';
 import 'mushaf_view_controller.dart';
+import '../../core/app_colors.dart';
 
 class MushafViewScreen extends GetView<MushafViewController> {
   const MushafViewScreen({super.key});
@@ -37,7 +38,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
     final isAr = controller.storage.getAppLanguage() == 'ar';
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF8F5),
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: Stack(
         children: [
           // ── Mushaf Page View ──────────────────────────────────────────
@@ -45,7 +46,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
             if (controller.isLoading.value) {
               return const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               );
             }
@@ -66,7 +67,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
               appLanguageCode: isAr ? 'ar' : 'en',
               useDefaultAppBar: true,
               isShowAudioSlider: false,
-              ayahSelectedBackgroundColor: const Color(0xFFC19A6B).withValues(alpha: 0.35),
+              ayahSelectedBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
               ayahSelectedFontColor: isDark ? Colors.white : const Color(0xFF1A0F00),
               onAyahLongPress: (_, ayah) => _showTafseerSheet(context, ayah),
             );
@@ -105,11 +106,11 @@ class MushafViewScreen extends GetView<MushafViewController> {
             child: Container(
               decoration: BoxDecoration(
                 color: isDark
-                    ? const Color(0xFF181510).withValues(alpha: 0.85)
-                    : const Color(0xFFFCF7EE).withValues(alpha: 0.90),
+                    ? AppColors.cardDark.withValues(alpha: 0.85)
+                    : AppColors.cardLight.withValues(alpha: 0.90),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFFC19A6B).withValues(alpha: 0.25),
+                  color: AppColors.primary.withValues(alpha: 0.25),
                   width: 1,
                 ),
                 boxShadow: [
@@ -131,10 +132,10 @@ class MushafViewScreen extends GetView<MushafViewController> {
                       return LinearProgressIndicator(
                         value: isLoaded ? progress : 0.0,
                         backgroundColor: isLoaded
-                            ? const Color(0xFFC19A6B).withValues(alpha: 0.08)
+                            ? AppColors.primary.withValues(alpha: 0.08)
                             : Colors.transparent,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          isLoaded ? const Color(0xFFC19A6B) : Colors.transparent,
+                          isLoaded ? AppColors.primary : Colors.transparent,
                         ),
                         minHeight: 1.2,
                       );
@@ -162,7 +163,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : const Color(0xFF8B6914),
+                                      color: isDark ? Colors.white : AppColors.primary,
                                       fontFamily: 'UthmanicHafs',
                                     ),
                                   ),
@@ -195,7 +196,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
                         Container(
                           height: 18,
                           width: 1,
-                          color: const Color(0xFFC19A6B).withValues(alpha: 0.2),
+                          color: AppColors.primary.withValues(alpha: 0.2),
                         ),
                         const SizedBox(width: 8),
 
@@ -231,8 +232,8 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: const [
-                                      Color(0xFFD4AF37),
-                                      Color(0xFFC19A6B),
+                                      AppColors.primary,
+                                      AppColors.accent,
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -240,7 +241,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFC19A6B).withValues(alpha: 0.25),
+                                      color: AppColors.primary.withValues(alpha: 0.25),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -304,10 +305,10 @@ class _BarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = active
-        ? const Color(0xFFC19A6B)
+        ? AppColors.primary
         : enabled
-            ? const Color(0xFFC19A6B).withValues(alpha: 0.85)
-            : const Color(0xFFC19A6B).withValues(alpha: 0.25);
+            ? AppColors.primary.withValues(alpha: 0.85)
+            : AppColors.primary.withValues(alpha: 0.25);
 
     return GestureDetector(
       onTap: enabled ? onTap : null,
@@ -317,12 +318,12 @@ class _BarButton extends StatelessWidget {
         height: 28,
         decoration: BoxDecoration(
           color: active
-              ? const Color(0xFFC19A6B).withValues(alpha: 0.22)
-              : const Color(0xFFC19A6B).withValues(alpha: 0.10),
+              ? AppColors.primary.withValues(alpha: 0.22)
+              : AppColors.primary.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(8),
           border: active
               ? Border.all(
-                  color: const Color(0xFFC19A6B).withValues(alpha: 0.6),
+                  color: AppColors.primary.withValues(alpha: 0.6),
                   width: 1,
                 )
               : null,
@@ -381,7 +382,7 @@ class _EqualizerIconState extends State<_EqualizerIcon> with SingleTickerProvide
               height: 10 * _bars[i].value,
               margin: const EdgeInsets.symmetric(horizontal: 1.2),
               decoration: BoxDecoration(
-                color: const Color(0xFFC19A6B),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(1.5),
               ),
             );
@@ -508,7 +509,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFFC19A6B),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -556,9 +557,9 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C1F00) : const Color(0xFFFFF8E7),
+        color: isDark ? AppColors.secondaryDark : AppColors.cardLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFC19A6B).withValues(alpha: 0.35)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
       ),
       child: widget.verse.textUthmani.isNotEmpty
           ? Text(
@@ -587,7 +588,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF4F4F4),
+        color: isDark ? AppColors.cardDark : AppColors.secondaryLight,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -629,7 +630,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
             ),
             DropdownButton<int>(
               value: _selectedTafsirId,
-              dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              dropdownColor: isDark ? AppColors.cardDark : Colors.white,
               style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
               underline: const SizedBox(),
               items: _tafsirOptions.map((opt) {
@@ -655,7 +656,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
                 child: Padding(
                   padding: EdgeInsets.all(24.0),
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
               )
@@ -676,7 +677,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF9F9F9),
+                      color: isDark ? AppColors.cardDark : AppColors.bgLight,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
                     ),

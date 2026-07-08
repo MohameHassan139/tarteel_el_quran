@@ -4,6 +4,7 @@ import '../../core/api_service.dart';
 import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
 import '../../models.dart';
+import '../../core/app_colors.dart';
 
 class MushafController extends GetxController {
   final ApiService _api = Get.find<ApiService>();
@@ -64,11 +65,11 @@ class MushafController extends GetxController {
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
         AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          title: const Text('حذف الصوت', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppColors.getCard(Get.isDarkMode),
+          title: Text('حذف الصوت', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
           content: Text(
             'هل أنت متأكد من حذف الملف الصوتي الخاص بسورة ${chapter.nameSimple} من الهاتف؟',
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
           ),
           actions: [
             TextButton(
@@ -114,7 +115,7 @@ class MushafController extends GetxController {
         Get.snackbar(
           'نجاح التحميل',
           'تم تحميل سورة ${chapter.nameSimple} بنجاح!',
-          backgroundColor: const Color(0xFFC19A6B),
+          backgroundColor: AppColors.primary,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
         );

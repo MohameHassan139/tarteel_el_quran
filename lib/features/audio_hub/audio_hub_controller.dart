@@ -6,6 +6,7 @@ import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/audio_service.dart';
 import '../../models.dart';
+import '../../core/app_colors.dart';
 
 class AudioHubController extends GetxController {
   final ApiService _api = Get.find<ApiService>();
@@ -71,11 +72,11 @@ class AudioHubController extends GetxController {
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
         AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          title: const Text('حذف الصوت', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppColors.getCard(Get.isDarkMode),
+          title: Text('حذف الصوت', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
           content: Text(
             'هل أنت متأكد من حذف الملف الصوتي لسورة ${chapter.nameSimple}؟',
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
           ),
           actions: [
             TextButton(
@@ -158,7 +159,7 @@ class AudioHubController extends GetxController {
       Get.snackbar(
         'تحميل جماعي',
         'اكتمل تحميل جميع سور القارئ المختار! 🎉',
-        backgroundColor: const Color(0xFFC19A6B),
+        backgroundColor: AppColors.primary,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -180,11 +181,11 @@ class AudioHubController extends GetxController {
   Future<void> deleteAllAudio() async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('حذف جميع التلاوات', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: AppColors.getCard(Get.isDarkMode),
+        title: Text('حذف جميع التلاوات', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
+        content: Text(
           'هل أنت متأكد من حذف كافة الملفات الصوتية المخزنة لهذا القارئ؟',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
         ),
         actions: [
           TextButton(

@@ -5,6 +5,7 @@ import '../../core/audio_service.dart';
 import '../../core/storage_service.dart';
 import '../../models.dart';
 import 'hifz_controller.dart';
+import '../../core/app_colors.dart';
 
 class HifzScreen extends GetView<HifzController> {
   const HifzScreen({super.key});
@@ -32,7 +33,7 @@ class HifzScreen extends GetView<HifzController> {
             if (controller.isLoading.value) {
               return const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               );
             }
@@ -50,7 +51,7 @@ class HifzScreen extends GetView<HifzController> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFC19A6B).withOpacity(0.15),
+                        color: AppColors.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -58,7 +59,7 @@ class HifzScreen extends GetView<HifzController> {
                             ? 'الآية ${currentVerse.verseKey}'
                             : 'جاري تهيئة مساحة الحفظ...',
                         style: const TextStyle(
-                          color: Color(0xFFC19A6B),
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -78,10 +79,10 @@ class HifzScreen extends GetView<HifzController> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFC19A6B).withValues(alpha: 0.08),
+                                  color: AppColors.primary.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: const Color(0xFFC19A6B).withValues(alpha: 0.2),
+                                    color: AppColors.primary.withValues(alpha: 0.2),
                                   ),
                                 ),
                                 child: () {
@@ -120,7 +121,7 @@ class HifzScreen extends GetView<HifzController> {
                   
                   // Looping status indicators
                   Card(
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.cardDark,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -220,17 +221,17 @@ class HifzScreen extends GetView<HifzController> {
             children: [
               const Text(
                 'اختر السورة ونطاق الآيات',
-                style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               
               // Surah Dropdown selector
               DropdownButtonFormField<Chapter>(
                 value: controller.selectedChapter.value,
-                dropdownColor: const Color(0xFF1E1E1E),
+                dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                  fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
                 items: controller.chapters.map((chapter) {
@@ -261,10 +262,10 @@ class HifzScreen extends GetView<HifzController> {
                           controller: controller.startAyahController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            filled: true,
-                            fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          ),
+                             filled: true,
+                             fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                           ),
                         ),
                       ],
                     ),
@@ -281,7 +282,7 @@ class HifzScreen extends GetView<HifzController> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                            fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           ),
                         ),
@@ -290,11 +291,10 @@ class HifzScreen extends GetView<HifzController> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-              
+              const SizedBox(height: 24),
               const Text(
                 'خيارات التكرار والتحفيظ',
-                style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               
@@ -305,13 +305,13 @@ class HifzScreen extends GetView<HifzController> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                        color: isDark ? AppColors.secondaryDark : Colors.grey[200],
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: controller.verseRepetitions.value,
-                          dropdownColor: const Color(0xFF1E1E1E),
+                          dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                           items: List.generate(10, (i) => i + 1).map((e) {
                             return DropdownMenuItem(value: e, child: Text('تكرار الآية: $e مرات'));
                           }).toList(),
@@ -329,14 +329,14 @@ class HifzScreen extends GetView<HifzController> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                        color: isDark ? AppColors.secondaryDark : Colors.grey[200],
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: controller.rangeRepetitions.value,
                           isExpanded: true,
-                          dropdownColor: const Color(0xFF1E1E1E),
+                          dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                           items: List.generate(10, (i) => i + 1).map((e) {
                             return DropdownMenuItem(
                               value: e,
@@ -360,15 +360,15 @@ class HifzScreen extends GetView<HifzController> {
               const SizedBox(height: 24),
               const Text(
                 'القارئ المختار للتلاوة',
-                style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 value: controller.selectedReciterId.value,
-                dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                  fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
@@ -386,17 +386,17 @@ class HifzScreen extends GetView<HifzController> {
               ),
               if (controller.selectedReciterId.value == 6) ...[
                 const SizedBox(height: 16),
-                const Text(
+                  const Text(
                   'رواية/أسلوب التلاوة',
-                  style: TextStyle(color: Color(0xFFC19A6B), fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: controller.selectedStyle.value,
-                  dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[200],
+                    fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
@@ -416,7 +416,7 @@ class HifzScreen extends GetView<HifzController> {
               // Start Hifz Workspace button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC19A6B),
+                  backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
