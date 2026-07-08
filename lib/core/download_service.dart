@@ -2,32 +2,29 @@ import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:get/get.dart';
 import 'storage_service.dart';
-import '../main.dart';
+import 'api_service.dart';
 
-class DownloadService {
-  final StorageService _storageService;
+class DownloadService extends GetxService {
+  final StorageService _storageService = Get.find<StorageService>();
 
-  // Stream controller to broadcast download progress
+  // Reactive map to broadcast download progress
   // Key: "reciterId_chapterId", Value: double progress (0.0 to 1.0)
-  final _progressController = StreamController<Map<String, double>>.broadcast();
-  final Map<String, double> _activeProgress = {};
+  final RxMap<String, double> activeProgress = <String, double>{}.obs;
 
-  DownloadService(this._storageService);
-
-  Stream<Map<String, double>> get progressStream => _progressController.stream;
+  Stream<Map<String, double>> get progressStream => activeProgress.stream;
 
   double? getProgress(int reciterId, int chapterId) {
-    return _activeProgress['${reciterId}_$chapterId'];
+    return activeProgress['${reciterId}_$chapterId'];
   }
 
   /// Download continuous Surah audio.
   Future<void> downloadChapter(int reciterId, int chapterId, String url) async {
     final taskKey = '${reciterId}_$chapterId';
-    if (_activeProgress.containsKey(taskKey)) return; // Already downloading
+    if (activeProgress.containsKey(taskKey)) return; // Already downloading
 
-    _activeProgress[taskKey] = 0.0;
-    _progressController.add(Map.from(_activeProgress));
+    activeProgress[taskKey] = 0.0;
 
     try {
       final client = http.Client();
@@ -59,8 +56,7 @@ class DownloadService {
           downloadedBytes += chunk.length;
 
           final progress = downloadedBytes / totalLength;
-          _activeProgress[taskKey] = progress;
-          _progressController.add(Map.from(_activeProgress));
+          activeProgress[taskKey] = progress;
         }
 
         // Flush and close file safely
@@ -71,13 +67,12 @@ class DownloadService {
         // Save path to local database
         await _storageService.setDownloadedAudioPath(reciterId, chapterId, file.path);
 
-        _activeProgress.remove(taskKey);
-        _progressController.add(Map.from(_activeProgress));
+        activeProgress.remove(taskKey);
 
         // Start background download of Tafsirs (non-blocking)
         unawaited(() async {
           try {
-            final api = Locator.api;
+            final api = Get.find<ApiService>();
             // Cache Tafsir IDs: 16 (Al-Muyassar), 91 (Ibn Kathir), 131 (Saheeh International)
             await api.fetchAndCacheChapterTafsir(chapterId, tafsirId: 16);
             await api.fetchAndCacheChapterTafsir(chapterId, tafsirId: 91);
@@ -95,8 +90,7 @@ class DownloadService {
         rethrow;
       }
     } catch (e) {
-      _activeProgress.remove(taskKey);
-      _progressController.add(Map.from(_activeProgress));
+      activeProgress.remove(taskKey);
       rethrow;
     }
   }
@@ -112,8 +106,8 @@ class DownloadService {
         } catch (_) {}
       }
       await _storageService.deleteDownloadedAudioPath(reciterId, chapterId);
-      // Force UI updates by triggering progress streams with a completed delete event
-      _progressController.add(Map.from(_activeProgress));
+      // Force UI updates by removing any active item or triggering a refresh
+      activeProgress.refresh();
     }
   }
 }

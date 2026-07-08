@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:get/get.dart';
 import 'storage_service.dart';
 import '../models.dart';
 
@@ -20,21 +20,21 @@ class HifzLoopConfig {
   bool get isActive => startVerseKey.isNotEmpty;
 }
 
-class AudioService {
-  final StorageService _storageService;
+class AudioService extends GetxService {
+  final StorageService _storageService = Get.find<StorageService>();
   final AudioPlayer _player = AudioPlayer();
 
   Chapter? _activeChapter;
   List<VerseTiming> _timings = [];
   
-  // Notifiers for UI updates
-  final ValueNotifier<Chapter?> activeChapterNotifier = ValueNotifier<Chapter?>(null);
-  final ValueNotifier<String?> activeVerseKeyNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<bool> isPlayingNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<Duration> positionNotifier = ValueNotifier<Duration>(Duration.zero);
-  final ValueNotifier<Duration> durationNotifier = ValueNotifier<Duration>(Duration.zero);
-  final ValueNotifier<int> verseRepeatNotifier = ValueNotifier<int>(0);
-  final ValueNotifier<int> rangeRepeatNotifier = ValueNotifier<int>(0);
+  // Reactive states for UI updates
+  final Rxn<Chapter> activeChapter = Rxn<Chapter>();
+  final Rxn<String> activeVerseKey = Rxn<String>();
+  final RxBool isPlaying = false.obs;
+  final Rx<Duration> position = Duration.zero.obs;
+  final Rx<Duration> duration = Duration.zero.obs;
+  final RxInt verseRepeat = 0.obs;
+  final RxInt rangeRepeat = 0.obs;
 
   // Single-ayah repeat mode (for mushaf screen)
   bool _repeatSingleAyah = false;
@@ -50,35 +50,37 @@ class AudioService {
   int _currentRangeRepeatCount = 0;
   String? _lastTrackedVerseKey;
 
-  AudioService(this._storageService) {
+  @override
+  void onInit() {
+    super.onInit();
     _init();
   }
 
   void _init() {
     _playerStateSub = _player.playerStateStream.listen((state) {
-      isPlayingNotifier.value = state.playing;
+      isPlaying.value = state.playing;
     });
 
     _positionSub = _player.positionStream.listen((pos) {
-      positionNotifier.value = pos;
+      position.value = pos;
       _updateActiveVerse(pos);
     });
 
     _durationSub = _player.durationStream.listen((dur) {
       if (dur != null) {
-        durationNotifier.value = dur;
+        duration.value = dur;
       }
     });
   }
 
-  Chapter? get activeChapter => _activeChapter;
+  Chapter? get currentActiveChapterRaw => _activeChapter;
   AudioPlayer get player => _player;
 
   /// Start playing a Surah either from local file (if downloaded) or streaming.
   Future<void> playSurah(Chapter chapter, String? streamUrl, List<VerseTiming> timings) async {
     await stop();
     _activeChapter = chapter;
-    activeChapterNotifier.value = chapter;
+    activeChapter.value = chapter;
     _timings = timings;
     _loopConfig = null;
     _lastTrackedVerseKey = null;
@@ -108,8 +110,8 @@ class AudioService {
     _loopConfig = config;
     _currentVerseRepeatCount = 0;
     _currentRangeRepeatCount = 0;
-    verseRepeatNotifier.value = 0;
-    rangeRepeatNotifier.value = 0;
+    verseRepeat.value = 0;
+    rangeRepeat.value = 0;
 
     // Seek to the start of the first verse in the range
     final startTiming = _getTimingForKey(config.startVerseKey);
@@ -129,15 +131,15 @@ class AudioService {
   Future<void> stop() async {
     await _player.stop();
     _activeChapter = null;
-    activeChapterNotifier.value = null;
-    activeVerseKeyNotifier.value = null;
-    positionNotifier.value = Duration.zero;
-    durationNotifier.value = Duration.zero;
+    activeChapter.value = null;
+    activeVerseKey.value = null;
+    position.value = Duration.zero;
+    duration.value = Duration.zero;
     _loopConfig = null;
   }
 
-  Future<void> seek(Duration position) async {
-    await _player.seek(position);
+  Future<void> seek(Duration targetPosition) async {
+    await _player.seek(targetPosition);
   }
 
   /// Seek directly to a specific VerseTiming (used for previous-ayah button).
@@ -166,9 +168,9 @@ class AudioService {
   }
 
   /// Synchronize active verse with play position, and handle looping.
-  Future<void> _updateActiveVerse(Duration position) async {
+  Future<void> _updateActiveVerse(Duration currentPosition) async {
     if (_timings.isEmpty) return;
-    final ms = position.inMilliseconds;
+    final ms = currentPosition.inMilliseconds;
 
     // Find current active verse based on timing
     VerseTiming? activeTiming;
@@ -182,8 +184,8 @@ class AudioService {
     if (activeTiming == null) return;
     final activeKey = activeTiming.verseKey;
 
-    if (activeVerseKeyNotifier.value != activeKey) {
-      activeVerseKeyNotifier.value = activeKey;
+    if (activeVerseKey.value != activeKey) {
+      activeVerseKey.value = activeKey;
 
       // Track timing for single-ayah repeat
       if (_repeatSingleAyah) {
@@ -216,11 +218,11 @@ class AudioService {
       // 1. If position goes beyond the end of the whole range
       if (ms >= endTiming.timestampTo) {
         _currentRangeRepeatCount++;
-        rangeRepeatNotifier.value = _currentRangeRepeatCount;
+        rangeRepeat.value = _currentRangeRepeatCount;
         if (_currentRangeRepeatCount < loop.rangeRepetitions) {
           // Loop the entire range again
           _currentVerseRepeatCount = 0;
-          verseRepeatNotifier.value = 0;
+          verseRepeat.value = 0;
           _player.seek(Duration(milliseconds: startTiming.timestampFrom));
           return;
         } else {
@@ -235,7 +237,7 @@ class AudioService {
         // Position changed to a new verse, reset verse repeat counter
         _lastTrackedVerseKey = activeKey;
         _currentVerseRepeatCount = 0;
-        verseRepeatNotifier.value = 0;
+        verseRepeat.value = 0;
       }
 
       // If active verse is within range, check if it reached the end of its duration
@@ -244,17 +246,19 @@ class AudioService {
       if (ms >= currentTiming.timestampTo - 200) {
         if (_currentVerseRepeatCount < loop.verseRepetitions - 1) {
           _currentVerseRepeatCount++;
-          verseRepeatNotifier.value = _currentVerseRepeatCount;
+          verseRepeat.value = _currentVerseRepeatCount;
           _player.seek(Duration(milliseconds: currentTiming.timestampFrom));
         }
       }
     }
   }
 
-  void dispose() {
+  @override
+  void onClose() {
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _durationSub?.cancel();
     _player.dispose();
+    super.onClose();
   }
 }

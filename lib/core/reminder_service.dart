@@ -1,13 +1,14 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:get/get.dart';
 
-class ReminderService {
+class ReminderService extends GetxService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   static const int reminderId = 999;
 
-  Future<void> init() async {
+  Future<ReminderService> init() async {
     // Initialize timezone database
     tz.initializeTimeZones();
 
@@ -22,6 +23,7 @@ class ReminderService {
 
     // Request notification permissions for Android 13+
     _requestAndroidPermissions();
+    return this;
   }
 
   Future<void> _requestAndroidPermissions() async {

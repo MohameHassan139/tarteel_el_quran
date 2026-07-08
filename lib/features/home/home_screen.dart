@@ -1,45 +1,11 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../models.dart';
-import '../../main.dart'; // To get Locator
-import '../widgets/bottom_player.dart';
-import 'mushaf_screen.dart';
-import 'hifz_screen.dart';
-import 'ward_screen.dart';
-import 'settings_screen.dart';
-import 'audio_hub_screen.dart';
+import 'package:get/get.dart';
+import '../../routes/app_routes.dart';
+import '../shared/widgets/bottom_player.dart';
+import 'home_controller.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  late WardGoal _goal;
-  Timer? _refreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _goal = Locator.storage.getWardGoal();
-    
-    // Periodically update the progress display to capture active reading duration changes
-    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _goal = Locator.storage.getWardGoal();
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
 
   Widget _buildGridItem({
     required BuildContext context,
@@ -47,21 +13,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required String subtitle,
     required IconData icon,
     required Color color,
-    required Widget targetScreen,
+    required String routeName,
   }) {
-    final isDark = Locator.storage.isDarkMode();
+    final isDark = controller.isDarkMode();
     
     return Card(
       elevation: 4,
       color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3EFE6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => targetScreen),
-          );
-        },
+        onTap: () => Get.toNamed(routeName),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -106,10 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Locator.storage.isDarkMode();
-    final completedMinutes = (_goal.activeSecondsToday / 60).floor();
-    final progress = _goal.targetMinutes > 0 ? (completedMinutes / _goal.targetMinutes) : 0.0;
-
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -149,12 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.settings, color: Color(0xFFC19A6B), size: 26),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                              );
-                            },
+                            onPressed: () => Get.toNamed(AppRoutes.SETTINGS),
                           ),
                           const SizedBox(width: 8),
                           CircleAvatar(
@@ -169,60 +121,67 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
 
                   // Today's Ward Progress Card
-                  Card(
-                    color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3EFE6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    elevation: 6,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'الورد اليومي',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  Obx(() {
+                    final goal = controller.wardGoal.value;
+                    final completedMinutes = (goal.activeSecondsToday / 60).floor();
+                    final progress = goal.targetMinutes > 0 ? (completedMinutes / goal.targetMinutes) : 0.0;
+                    final isDark = controller.isDarkMode();
+
+                    return Card(
+                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3EFE6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      elevation: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'الورد اليومي',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '$completedMinutes من ${_goal.targetMinutes} دقيقة',
-                                style: const TextStyle(
-                                  color: Color(0xFFC19A6B),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
+                                Text(
+                                  '$completedMinutes من ${goal.targetMinutes} دقيقة',
+                                  style: const TextStyle(
+                                    color: Color(0xFFC19A6B),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: LinearProgressIndicator(
+                                value: progress.clamp(0.0, 1.0),
+                                minHeight: 8,
+                                backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: LinearProgressIndicator(
-                              value: progress.clamp(0.0, 1.0),
-                              minHeight: 8,
-                              backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
-                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC19A6B)),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            progress >= 1.0
-                                ? 'أحسنت! لقد أكملت وردك لليوم 🎉'
-                                : 'متبقي ${(_goal.targetMinutes - completedMinutes).clamp(0, _goal.targetMinutes)} دقيقة لإنجاز هدف اليوم.',
-                            style: TextStyle(
-                              color: progress >= 1.0 ? const Color(0xFFC19A6B) : Colors.grey,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                            const SizedBox(height: 12),
+                            Text(
+                              progress >= 1.0
+                                  ? 'أحسنت! لقد أكملت وردك لليوم 🎉'
+                                  : 'متبقي ${(goal.targetMinutes - completedMinutes).clamp(0, goal.targetMinutes)} دقيقة لإنجاز هدف اليوم.',
+                              style: TextStyle(
+                                color: progress >= 1.0 ? const Color(0xFFC19A6B) : Colors.grey,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                   const SizedBox(height: 24),
 
                   // Grid Menu Header
@@ -251,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle: 'قراءة السور وتصفح التفسير',
                         icon: Icons.menu_book,
                         color: const Color(0xFFC19A6B),
-                        targetScreen: const MushafScreen(),
+                        routeName: AppRoutes.MUSHAF,
                       ),
                       _buildGridItem(
                         context: context,
@@ -259,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle: 'حلقة تكرار وحفظ الآيات',
                         icon: Icons.psychology,
                         color: Colors.blueAccent,
-                        targetScreen: const HifzScreen(),
+                        routeName: AppRoutes.HIFZ,
                       ),
                       _buildGridItem(
                         context: context,
@@ -267,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle: 'سجل الإنجاز والهدف اليومي',
                         icon: Icons.assignment_turned_in,
                         color: Colors.green,
-                        targetScreen: const WardScreen(),
+                        routeName: AppRoutes.WARD,
                       ),
                       _buildGridItem(
                         context: context,
@@ -275,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle: 'تلاوات صوتية وتحميل جماعي',
                         icon: Icons.headphones,
                         color: Colors.teal,
-                        targetScreen: const AudioHubScreen(),
+                        routeName: AppRoutes.AUDIO_HUB,
                       ),
                     ],
                   ),

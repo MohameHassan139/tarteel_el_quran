@@ -1,0 +1,285 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../core/api_service.dart';
+import '../../core/download_service.dart';
+import '../../core/storage_service.dart';
+import '../../core/audio_service.dart';
+import '../../models.dart';
+
+class AudioHubController extends GetxController {
+  final ApiService _api = Get.find<ApiService>();
+  final DownloadService _download = Get.find<DownloadService>();
+  final StorageService _storage = Get.find<StorageService>();
+  final AudioService _audio = Get.find<AudioService>();
+
+  final RxList<Chapter> chapters = <Chapter>[].obs;
+  final RxList<Chapter> filteredChapters = <Chapter>[].obs;
+  final RxBool isLoading = true.obs;
+  final RxString errorMessage = ''.obs;
+  final searchController = TextEditingController();
+
+  // Bulk Downloading state
+  final RxBool isBulkDownloading = false.obs;
+  final RxInt bulkDownloadId = 0.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadChapters();
+    searchController.addListener(filterChapters);
+  }
+
+  Future<void> loadChapters() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final list = await _api.fetchChapters();
+      chapters.assignAll(list);
+      filteredChapters.assignAll(list);
+    } on ApiException catch (e) {
+      errorMessage.value = e.message;
+    } catch (e) {
+      errorMessage.value = 'فشل الاتصال بالخادم وتحميل السور: ${e.toString()}';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void filterChapters() {
+    final query = searchController.text.toLowerCase();
+    if (query.isEmpty) {
+      filteredChapters.assignAll(chapters);
+    } else {
+      filteredChapters.assignAll(chapters.where((chapter) {
+        return chapter.nameSimple.toLowerCase().contains(query) ||
+            chapter.nameArabic.contains(query) ||
+            chapter.translatedName.toLowerCase().contains(query);
+      }).toList());
+    }
+  }
+
+  bool isChapterDownloaded(int chapterId) {
+    final reciterId = _storage.getEffectiveReciterId();
+    return _storage.isChapterDownloaded(reciterId, chapterId);
+  }
+
+  Future<void> handleDownload(Chapter chapter) async {
+    final reciterId = _storage.getEffectiveReciterId();
+    final isDownloaded = isChapterDownloaded(chapter.id);
+
+    if (isDownloaded) {
+      final confirm = await Get.dialog<bool>(
+        AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text('حذف الصوت', style: TextStyle(color: Colors.white)),
+          content: Text(
+            'هل أنت متأكد من حذف الملف الصوتي لسورة ${chapter.nameSimple}؟',
+            style: const TextStyle(color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+              onPressed: () => Get.back(result: false),
+            ),
+            TextButton(
+              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              onPressed: () => Get.back(result: true),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        await _download.deleteChapter(reciterId, chapter.id);
+        filteredChapters.refresh();
+        Get.snackbar(
+          'حذف الصوت',
+          'تم حذف الملف الصوتي لسورة ${chapter.nameSimple}',
+          backgroundColor: Colors.grey[800],
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } else {
+      try {
+        final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
+        final audioUrl = audioData['audio_url'] as String?;
+        if (audioUrl == null) throw Exception('رابط التحميل غير متوفر.');
+
+        await _download.downloadChapter(reciterId, chapter.id, audioUrl);
+        filteredChapters.refresh();
+      } catch (e) {
+        Get.snackbar(
+          'فشل التحميل',
+          'فشل التحميل: ${e.toString()}',
+          backgroundColor: Colors.red[800],
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
+
+  Future<void> startBulkDownload() async {
+    isBulkDownloading.value = true;
+    final reciterId = _storage.getEffectiveReciterId();
+
+    Get.snackbar(
+      'تحميل جماعي',
+      'بدء تحميل كافة السور لهذا القارئ في الخلفية...',
+      duration: const Duration(seconds: 3),
+      snackPosition: SnackPosition.BOTTOM,
+    );
+
+    for (int i = 0; i < chapters.length; i++) {
+      if (!isBulkDownloading.value) break; // Bulk process cancelled
+      final chapter = chapters[i];
+      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id);
+
+      if (!isDownloaded) {
+        bulkDownloadId.value = chapter.id;
+
+        try {
+          final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
+          final audioUrl = audioData['audio_url'] as String?;
+          if (audioUrl != null) {
+            await _download.downloadChapter(reciterId, chapter.id, audioUrl);
+          }
+        } catch (e) {
+          debugPrint('Bulk download error for chapter ${chapter.id}: $e');
+        }
+      }
+    }
+
+    if (isBulkDownloading.value) {
+      isBulkDownloading.value = false;
+      bulkDownloadId.value = 0;
+      Get.snackbar(
+        'تحميل جماعي',
+        'اكتمل تحميل جميع سور القارئ المختار! 🎉',
+        backgroundColor: const Color(0xFFC19A6B),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  void cancelBulkDownload() {
+    isBulkDownloading.value = false;
+    bulkDownloadId.value = 0;
+    Get.snackbar(
+      'تحميل جماعي',
+      'تم إيقاف عملية التحميل الجماعي.',
+      backgroundColor: Colors.orange,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  Future<void> deleteAllAudio() async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('حذف جميع التلاوات', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'هل أنت متأكد من حذف كافة الملفات الصوتية المخزنة لهذا القارئ؟',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Get.back(result: false),
+          ),
+          TextButton(
+            child: const Text('حذف الكل', style: TextStyle(color: Colors.red)),
+            onPressed: () => Get.back(result: true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final reciterId = _storage.getEffectiveReciterId();
+      isLoading.value = true;
+
+      for (var chapter in chapters) {
+        if (_storage.isChapterDownloaded(reciterId, chapter.id)) {
+          await _download.deleteChapter(reciterId, chapter.id);
+        }
+      }
+
+      isLoading.value = false;
+      filteredChapters.refresh();
+      Get.snackbar(
+        'إفراغ التلاوات',
+        'تم إفراغ التلاوات المخزنة بالكامل.',
+        backgroundColor: Colors.grey,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> playSurah(Chapter chapter) async {
+    final reciterId = _storage.getEffectiveReciterId();
+    final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id);
+    List<VerseTiming> timings = [];
+    String? audioUrl;
+
+    if (isDownloaded) {
+      final cached = _storage.getCachedTimings(reciterId, chapter.id);
+      if (cached != null) {
+        timings = cached;
+      }
+      try {
+        await _audio.playSurah(chapter, null, timings);
+        return;
+      } catch (_) {
+        // Fallback to online if local load fails
+      }
+    }
+
+    try {
+      final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
+      audioUrl = audioData['audio_url'] as String?;
+      timings = audioData['timings'] as List<VerseTiming>? ?? [];
+      await _audio.playSurah(chapter, audioUrl, timings);
+    } catch (e) {
+      Get.snackbar(
+        'فشل تشغيل الصوت',
+        'فشل تشغيل الصوت: ${e.toString()}',
+        backgroundColor: Colors.red[800],
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> updateReciter(int reciterId) async {
+    await _storage.setSelectedReciterId(reciterId);
+    if (reciterId == 7) {
+      await _storage.setSelectedStyle('murattal');
+    }
+    filteredChapters.refresh();
+  }
+
+  Future<void> updateStyle(String style) async {
+    await _storage.setSelectedStyle(style);
+    filteredChapters.refresh();
+  }
+
+  String get bulkProgressString {
+    if (bulkDownloadId.value == 0) return '0%';
+    final currentCh = chapters.firstWhere((c) => c.id == bulkDownloadId.value, orElse: () => chapters.first);
+    final completed = chapters.indexOf(currentCh);
+    final percentage = ((completed / chapters.length) * 100).toInt();
+    return '$percentage%';
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
+  }
+}

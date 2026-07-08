@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:get/get.dart';
 import 'storage_service.dart';
 import '../models.dart';
 
@@ -42,15 +43,13 @@ class AuthException extends ApiException {
 
 // --- API Service Implementation ---
 
-class ApiService {
-  final StorageService _storageService;
+class ApiService extends GetxService {
+  final StorageService _storageService = Get.find<StorageService>();
 
   static const String authBaseUrl = 'https://oauth2.quran.foundation';
   static const String apiBaseUrl = 'https://apis.quran.foundation';
   static const String clientId = '263fccef-cea3-40f9-89a0-1b0589342da8';
   static const String clientSecret = '_JEuOmQzVOyaFUy4ZFV6ahd~HB';
-
-  ApiService(this._storageService);
 
   /// Authenticate with client credentials flow and cache token.
   Future<String> _getAccessToken() async {

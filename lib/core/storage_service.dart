@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:get/get.dart';
 import '../models.dart';
 
-class StorageService {
+class StorageService extends GetxService {
   static const String settingsBoxName = 'settings_box';
   static const String quranContentBoxName = 'quran_content_box';
   static const String downloadedAudioBoxName = 'downloaded_audio_box';
@@ -14,12 +15,13 @@ class StorageService {
   late Box _downloadedAudioBox;
   late Box _wardTrackerBox;
 
-  Future<void> init() async {
+  Future<StorageService> init() async {
     await Hive.initFlutter();
     _settingsBox = await Hive.openBox(settingsBoxName);
     _quranContentBox = await Hive.openBox(quranContentBoxName);
     _downloadedAudioBox = await Hive.openBox(downloadedAudioBoxName);
     _wardTrackerBox = await Hive.openBox(wardTrackerBoxName);
+    return this;
   }
 
   // --- Settings Box Helpers ---
