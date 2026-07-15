@@ -14,7 +14,7 @@ class MushafViewController extends GetxController {
 
   late Chapter chapter;
   
-  final RxBool isLoading = true.obs;
+  final RxBool isLoading = false.obs;
   final RxnInt activeAyahNumber = RxnInt();
   final RxBool isRepeatAyah = false.obs;
   final RxDouble ayahProgress = 0.0.obs;
@@ -23,12 +23,13 @@ class MushafViewController extends GetxController {
   Timer? _stopwatchTimer;
   StreamSubscription? _activeVerseSub;
   StreamSubscription? _selectedAyahSub;
+  Future<void>? _loadAudioFuture;
 
   @override
   void onInit() {
     super.onInit();
     chapter = Get.arguments as Chapter;
-    _loadAudio();
+    _loadAudioFuture = _loadAudio();
     _startStopwatch();
     
     // Listen to active verse changes
@@ -125,6 +126,11 @@ class MushafViewController extends GetxController {
   }
 
   Future<void> startPlaySurah() async {
+    if (audioPathsOrUrls.isEmpty && _loadAudioFuture != null) {
+      isLoading.value = true;
+      await _loadAudioFuture;
+    }
+
     if (audioPathsOrUrls.isEmpty) {
       Get.snackbar('الصوت', 'الروابط غير متوفرة. يرجى التأكد من الاتصال بالإنترنت.', snackPosition: SnackPosition.BOTTOM);
       return;

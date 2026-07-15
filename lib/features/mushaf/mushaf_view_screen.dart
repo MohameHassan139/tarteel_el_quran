@@ -34,14 +34,6 @@ class MushafViewScreen extends GetView<MushafViewController> {
         children: [
           // ── Mushaf Page View ──────────────────────────────────────────
           Obx(() {
-            if (controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              );
-            }
-
             // Access activeAyahNumber to trigger real-time highlight updates in Obx
             final _ = controller.activeAyahNumber.value;
 
@@ -238,11 +230,29 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  isCurrentlyPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
+                                child: Obx(() {
+                                  final isBuffering = audio.isBuffering.value;
+                                  final isControllerLoading = controller.isLoading.value;
+
+                                  if (isBuffering || (isControllerLoading && !isLoaded)) {
+                                    return const Center(
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  return Icon(
+                                    isCurrentlyPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  );
+                                }),
                               ),
                             ),
                             const SizedBox(width: 4),

@@ -30,6 +30,7 @@ class AudioService extends GetxService {
   final Rxn<Chapter> activeChapter = Rxn<Chapter>();
   final Rxn<String> activeVerseKey = Rxn<String>();
   final RxBool isPlaying = false.obs;
+  final RxBool isBuffering = false.obs;
   final Rx<Duration> position = Duration.zero.obs;
   final Rx<Duration> duration = Duration.zero.obs;
   final RxInt verseRepeat = 0.obs;
@@ -55,6 +56,8 @@ class AudioService extends GetxService {
   void _init() {
     _playerStateSub = _player.playerStateStream.listen((state) {
       isPlaying.value = state.playing;
+      isBuffering.value = state.processingState == ProcessingState.buffering ||
+                          state.processingState == ProcessingState.loading;
     });
 
     _currentIndexSub = _player.currentIndexStream.listen((index) {
