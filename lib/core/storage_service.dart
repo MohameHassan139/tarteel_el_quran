@@ -46,15 +46,17 @@ class StorageService extends GetxService {
     final reciterId = getSelectedReciterId();
     final style = getSelectedStyle();
     if (reciterId == 6) {
-      return style == 'mujawwad' ? 12 : 6; // Muallim for Al-Husary
+      if (style == 'mujawwad') return 12;
+      if (style == 'teacher') return 13;
+      return 6;
     }
     if (reciterId == 2) {
-      return style == 'mujawwad' ? 1 : 2; // Mujawwad for AbdulBaset
+      return style == 'mujawwad' ? 1 : 2;
     }
     if (reciterId == 9) {
-      return style == 'mujawwad' ? 8 : 9; // Mujawwad for Al-Minshawi
+      return style == 'mujawwad' ? 8 : 9;
     }
-    return reciterId; // Mishari is always 7
+    return reciterId;
   }
 
   bool isDarkMode() {
@@ -87,20 +89,6 @@ class StorageService extends GetxService {
 
   Future<void> setTranslationFontSize(double size) async {
     await _settingsBox.put('translation_font_size', size);
-  }
-
-  String? getCachedOAuthToken() {
-    return _settingsBox.get('oauth_token') as String?;
-  }
-
-  int getCachedOAuthTokenExpiry() {
-    return _settingsBox.get('oauth_token_expiry', defaultValue: 0) as int;
-  }
-
-  Future<void> cacheOAuthToken(String token, int expiresInSeconds) async {
-    final expiryTime = DateTime.now().millisecondsSinceEpoch + (expiresInSeconds * 1000);
-    await _settingsBox.put('oauth_token', token);
-    await _settingsBox.put('oauth_token_expiry', expiryTime);
   }
 
   // --- Quran Content Box Helpers ---
@@ -137,22 +125,6 @@ class StorageService extends GetxService {
     await _quranContentBox.put('verses_chapter_$chapterId', rawJson);
   }
 
-  List<VerseTiming>? getCachedTimings(int reciterId, int chapterId) {
-    final rawJson = _quranContentBox.get('timings_${reciterId}_$chapterId') as String?;
-    if (rawJson == null) return null;
-    try {
-      final decoded = jsonDecode(rawJson) as List;
-      return decoded.map((e) => VerseTiming.fromJson(e as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> cacheTimings(int reciterId, int chapterId, List<VerseTiming> timings) async {
-    final rawJson = jsonEncode(timings.map((e) => e.toJson()).toList());
-    await _quranContentBox.put('timings_${reciterId}_$chapterId', rawJson);
-  }
-
   String? getCachedTafsir(int tafsirId, String verseKey) {
     return _quranContentBox.get('tafsir_${tafsirId}_$verseKey') as String?;
   }
@@ -163,22 +135,27 @@ class StorageService extends GetxService {
 
   // --- Downloaded Audio Box Helpers ---
 
-  String? getDownloadedAudioPath(int reciterId, int chapterId) {
-    return _downloadedAudioBox.get('audio_${reciterId}_$chapterId') as String?;
+  String? getDownloadedAudioDirectory(int reciterId, int chapterId) {
+    return _downloadedAudioBox.get('audio_dir_${reciterId}_$chapterId') as String?;
   }
 
-  Future<void> setDownloadedAudioPath(int reciterId, int chapterId, String filePath) async {
-    await _downloadedAudioBox.put('audio_${reciterId}_$chapterId', filePath);
+  Future<void> setDownloadedAudioDirectory(int reciterId, int chapterId, String directoryPath) async {
+    await _downloadedAudioBox.put('audio_dir_${reciterId}_$chapterId', directoryPath);
   }
 
-  Future<void> deleteDownloadedAudioPath(int reciterId, int chapterId) async {
-    await _downloadedAudioBox.delete('audio_${reciterId}_$chapterId');
+  Future<void> deleteDownloadedAudioDirectory(int reciterId, int chapterId) async {
+    await _downloadedAudioBox.delete('audio_dir_${reciterId}_$chapterId');
   }
 
-  bool isChapterDownloaded(int reciterId, int chapterId) {
-    final path = getDownloadedAudioPath(reciterId, chapterId);
-    if (path == null) return false;
-    return File(path).existsSync();
+  bool isChapterDownloaded(int reciterId, int chapterId, int versesCount) {
+    final dirPath = getDownloadedAudioDirectory(reciterId, chapterId);
+    if (dirPath == null) return false;
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) return false;
+    
+    // Check if the directory has the correct number of mp3 files
+    final files = dir.listSync().where((f) => f.path.endsWith('.mp3')).toList();
+    return files.length == versesCount;
   }
 
   // --- Ward Tracker Box Helpers ---

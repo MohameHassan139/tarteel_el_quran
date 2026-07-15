@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:get/get.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/audio_service.dart';
@@ -18,8 +19,7 @@ class MushafViewController extends GetxController {
   final RxBool isRepeatAyah = false.obs;
   final RxDouble ayahProgress = 0.0.obs;
 
-  List<VerseTiming> timings = [];
-  String? audioUrl;
+  List<String> audioPathsOrUrls = [];
   Timer? _stopwatchTimer;
   StreamSubscription? _activeVerseSub;
   StreamSubscription? _selectedAyahSub;
@@ -28,7 +28,7 @@ class MushafViewController extends GetxController {
   void onInit() {
     super.onInit();
     chapter = Get.arguments as Chapter;
-    _loadTimings();
+    _loadAudio();
     _startStopwatch();
     
     // Listen to active verse changes
@@ -45,13 +45,9 @@ class MushafViewController extends GetxController {
           final surahNum = ayahModel.surahNumber ?? chapter.id;
           final ayahNum = ayahModel.ayahNumber;
 
-          if (surahNum == chapter.id && timings.isNotEmpty) {
+          if (surahNum == chapter.id && audioPathsOrUrls.isNotEmpty) {
             final targetKey = '$surahNum:$ayahNum';
-            final timing = timings.firstWhere(
-              (t) => t.verseKey == targetKey,
-              orElse: () => timings.first,
-            );
-            audio.seekToTiming(timing);
+            audio.seekToVerse(targetKey);
             // Clear manual selection highlight so it doesn't linger over the active player highlight
             QuranCtrl.instance.clearSelection();
           }
@@ -106,21 +102,21 @@ class MushafViewController extends GetxController {
     }
   }
 
-  Future<void> _loadTimings() async {
+  Future<void> _loadAudio() async {
     isLoading.value = true;
     try {
       final reciterId = storage.getEffectiveReciterId();
-      final cached = storage.getCachedTimings(reciterId, chapter.id);
-      if (cached != null) {
-        timings = cached;
-        return;
+      final isDownloaded = storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
+      
+      if (isDownloaded) {
+        final dirPath = storage.getDownloadedAudioDirectory(reciterId, chapter.id);
+        if (dirPath != null && Directory(dirPath).existsSync()) {
+          audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
+          return;
+        }
       }
-      final audioData = await _api.fetchChapterAudioAndTimings(
-        reciterId,
-        chapter.id,
-      );
-      timings = audioData['timings'] as List<VerseTiming>;
-      audioUrl = audioData['audio_url'] as String?;
+      
+      audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
     } catch (_) {
       // Non-critical
     } finally {
@@ -129,20 +125,12 @@ class MushafViewController extends GetxController {
   }
 
   Future<void> startPlaySurah() async {
-    if (timings.isEmpty) {
-      Get.snackbar('الصوت', 'بيانات توقيت التلاوة غير متوفرة.', snackPosition: SnackPosition.BOTTOM);
+    if (audioPathsOrUrls.isEmpty) {
+      Get.snackbar('الصوت', 'الروابط غير متوفرة. يرجى التأكد من الاتصال بالإنترنت.', snackPosition: SnackPosition.BOTTOM);
       return;
     }
     try {
-      final reciterId = storage.getEffectiveReciterId();
-      final localPath = storage.getDownloadedAudioPath(reciterId, chapter.id);
-      if (localPath != null) {
-        await audio.playSurah(chapter, localPath, timings);
-      } else if (audioUrl != null) {
-        await audio.playSurah(chapter, audioUrl, timings);
-      } else {
-        Get.snackbar('الصوت', 'لا يوجد ملف صوتي. يرجى التحميل أولاً.', snackPosition: SnackPosition.BOTTOM);
-      }
+      await audio.playSurah(chapter, audioPathsOrUrls);
     } catch (e) {
       Get.snackbar('فشل تشغيل الصوت', '$e', snackPosition: SnackPosition.BOTTOM);
     }
@@ -157,13 +145,9 @@ class MushafViewController extends GetxController {
   void previousAyah() {
     if (activeAyahNumber.value != null && activeAyahNumber.value! > 1) {
       final targetAyah = activeAyahNumber.value! - 1;
-      if (timings.isNotEmpty) {
+      if (audioPathsOrUrls.isNotEmpty) {
         final targetKey = '${chapter.id}:$targetAyah';
-        final timing = timings.firstWhere(
-          (t) => t.verseKey == targetKey,
-          orElse: () => timings.first,
-        );
-        audio.seekToTiming(timing);
+        audio.seekToVerse(targetKey);
       }
     }
   }

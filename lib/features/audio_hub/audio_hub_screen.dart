@@ -64,6 +64,19 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
                                       DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
                                       DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
+                                      DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
+                                      DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
+                                      DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
+                                      DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
+                                      DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
+                                      DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
+                                      DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
+                                      DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
+                                      DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
+                                      DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
+                                      DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
+                                      DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
+                                      DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
                                     ],
                                     onChanged: (val) {
                                       if (val != null) {
@@ -71,10 +84,10 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       }
                                     },
                                   ),
-                                  if (baseReciterId != 7) ...[
+                                  if (baseReciterId == 6 || baseReciterId == 2 || baseReciterId == 9) ...[
                                     const SizedBox(width: 8),
                                     DropdownButton<String>(
-                                      value: storage.getSelectedStyle(),
+                                      value: storage.getSelectedStyle() == 'teacher' && baseReciterId != 6 ? 'murattal' : storage.getSelectedStyle(),
                                       dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                                       style: TextStyle(
                                         color: isDark ? Colors.white : Colors.black87,
@@ -84,7 +97,8 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       items: baseReciterId == 6
                                           ? const [
                                               DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                              DropdownMenuItem(value: 'mujawwad', child: Text('معلّم')),
+                                              DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                                              DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
                                             ]
                                           : const [
                                               DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
@@ -202,7 +216,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                       final reciterId = storage.getEffectiveReciterId();
                       
                       return Obx(() {
-                        final isDownloaded = controller.isChapterDownloaded(chapter.id);
+                        final isDownloaded = controller.isChapterDownloaded(chapter);
                         final isCurrentBulk = controller.isBulkDownloading.value && controller.bulkDownloadId.value == chapter.id;
 
                         return ListTile(

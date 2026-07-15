@@ -25,7 +25,6 @@ class AudioService extends GetxService {
   final AudioPlayer _player = AudioPlayer();
 
   Chapter? _activeChapter;
-  List<VerseTiming> _timings = [];
   
   // Reactive states for UI updates
   final Rxn<Chapter> activeChapter = Rxn<Chapter>();
@@ -36,19 +35,16 @@ class AudioService extends GetxService {
   final RxInt verseRepeat = 0.obs;
   final RxInt rangeRepeat = 0.obs;
 
-  // Single-ayah repeat mode (for mushaf screen)
-  bool _repeatSingleAyah = false;
-  VerseTiming? _repeatAyahTiming;
-
-  StreamSubscription? _positionSub;
   StreamSubscription? _playerStateSub;
+  StreamSubscription? _currentIndexSub;
+  StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
 
   // Hifz looping runtime state
   HifzLoopConfig? _loopConfig;
   int _currentVerseRepeatCount = 0;
   int _currentRangeRepeatCount = 0;
-  String? _lastTrackedVerseKey;
+  int? _lastTrackedIndex;
 
   @override
   void onInit() {
@@ -61,9 +57,14 @@ class AudioService extends GetxService {
       isPlaying.value = state.playing;
     });
 
+    _currentIndexSub = _player.currentIndexStream.listen((index) {
+      if (index != null && _activeChapter != null) {
+        _updateActiveVerse(index);
+      }
+    });
+
     _positionSub = _player.positionStream.listen((pos) {
       position.value = pos;
-      _updateActiveVerse(pos);
     });
 
     _durationSub = _player.durationStream.listen((dur) {
@@ -76,37 +77,38 @@ class AudioService extends GetxService {
   Chapter? get currentActiveChapterRaw => _activeChapter;
   AudioPlayer get player => _player;
 
-  /// Start playing a Surah either from local file (if downloaded) or streaming.
-  Future<void> playSurah(Chapter chapter, String? streamUrl, List<VerseTiming> timings) async {
+  /// Start playing a Surah.
+  /// `audioPathsOrUrls` contains the path/URL for each Ayah.
+  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls) async {
     await stop();
+    if (audioPathsOrUrls.isEmpty) return;
+
     _activeChapter = chapter;
     activeChapter.value = chapter;
-    _timings = timings;
     _loopConfig = null;
-    _lastTrackedVerseKey = null;
+    _lastTrackedIndex = null;
 
-    final reciterId = _storageService.getEffectiveReciterId();
-    final localPath = _storageService.getDownloadedAudioPath(reciterId, chapter.id);
+    final playlist = ConcatenatingAudioSource(
+      useLazyPreparation: true,
+      children: audioPathsOrUrls.map((path) {
+        if (path.startsWith('http')) {
+          return AudioSource.uri(Uri.parse(path));
+        } else {
+          return AudioSource.file(path);
+        }
+      }).toList(),
+    );
 
     try {
-      if (localPath != null) {
-        // Play local file
-        await _player.setAudioSource(AudioSource.file(localPath));
-      } else if (streamUrl != null) {
-        // Play online stream
-        await _player.setAudioSource(AudioSource.uri(Uri.parse(streamUrl)));
-      } else {
-        throw Exception('Audio is not downloaded and streaming URL is unavailable.');
-      }
+      await _player.setAudioSource(playlist, initialIndex: 0, initialPosition: Duration.zero);
       await _player.play();
     } catch (_) {
       rethrow;
     }
   }
 
-  /// Start Hifz mode with specific loop configuration.
-  Future<void> playHifz(Chapter chapter, String? streamUrl, List<VerseTiming> timings, HifzLoopConfig config) async {
-    await playSurah(chapter, streamUrl, timings);
+  Future<void> playHifz(Chapter chapter, List<String> audioPathsOrUrls, HifzLoopConfig config) async {
+    await playSurah(chapter, audioPathsOrUrls);
     _loopConfig = config;
     _currentVerseRepeatCount = 0;
     _currentRangeRepeatCount = 0;
@@ -114,9 +116,9 @@ class AudioService extends GetxService {
     rangeRepeat.value = 0;
 
     // Seek to the start of the first verse in the range
-    final startTiming = _getTimingForKey(config.startVerseKey);
-    if (startTiming != null) {
-      await _player.seek(Duration(milliseconds: startTiming.timestampFrom));
+    final startIndex = _getIndexForKey(config.startVerseKey);
+    if (startIndex != -1) {
+      await _player.seek(Duration.zero, index: startIndex);
     }
   }
 
@@ -133,8 +135,6 @@ class AudioService extends GetxService {
     _activeChapter = null;
     activeChapter.value = null;
     activeVerseKey.value = null;
-    position.value = Duration.zero;
-    duration.value = Duration.zero;
     _loopConfig = null;
   }
 
@@ -142,88 +142,59 @@ class AudioService extends GetxService {
     await _player.seek(targetPosition);
   }
 
-  /// Seek directly to a specific VerseTiming (used for previous-ayah button).
-  Future<void> seekToTiming(VerseTiming timing) async {
-    await _player.seek(Duration(milliseconds: timing.timestampFrom));
+  /// Seek directly to a specific Verse by key.
+  Future<void> seekToVerse(String verseKey) async {
+    final index = _getIndexForKey(verseKey);
+    if (index != -1) {
+      await _player.seek(Duration.zero, index: index);
+    }
   }
 
   /// Enable or disable single-ayah repeat mode.
   void setRepeatCurrentAyah(bool enabled) {
-    _repeatSingleAyah = enabled;
-    if (!enabled) _repeatAyahTiming = null;
-  }
-
-  VerseTiming? _getTimingForKey(String key) {
-    for (var t in _timings) {
-      if (t.verseKey == key) return t;
+    if (enabled) {
+      _player.setLoopMode(LoopMode.one);
+    } else {
+      _player.setLoopMode(LoopMode.off);
     }
-    return null;
   }
 
-  int _getVerseIndex(String key) {
-    for (int i = 0; i < _timings.length; i++) {
-      if (_timings[i].verseKey == key) return i;
+  int _getIndexForKey(String key) {
+    if (_activeChapter == null) return -1;
+    final parts = key.split(':');
+    if (parts.length == 2 && parts[0] == _activeChapter!.id.toString()) {
+      return int.tryParse(parts[1])! - 1; // 0-based index
     }
     return -1;
   }
 
-  /// Synchronize active verse with play position, and handle looping.
-  Future<void> _updateActiveVerse(Duration currentPosition) async {
-    if (_timings.isEmpty) return;
-    final ms = currentPosition.inMilliseconds;
-
-    // Find current active verse based on timing
-    VerseTiming? activeTiming;
-    for (var t in _timings) {
-      if (ms >= t.timestampFrom && ms < t.timestampTo) {
-        activeTiming = t;
-        break;
-      }
-    }
-
-    if (activeTiming == null) return;
-    final activeKey = activeTiming.verseKey;
-
+  /// Synchronize active verse with play index, and handle looping.
+  Future<void> _updateActiveVerse(int currentIndex) async {
+    if (_activeChapter == null) return;
+    
+    final activeKey = '${_activeChapter!.id}:${currentIndex + 1}';
+    
     if (activeVerseKey.value != activeKey) {
       activeVerseKey.value = activeKey;
-
-      // Track timing for single-ayah repeat
-      if (_repeatSingleAyah) {
-        _repeatAyahTiming = activeTiming;
-      }
-    }
-
-    // Handle single-ayah repeat (mushaf screen)
-    if (_repeatSingleAyah && _repeatAyahTiming != null) {
-      final repTiming = _repeatAyahTiming!;
-      if (ms >= repTiming.timestampTo - 150) {
-        await _player.seek(Duration(milliseconds: repTiming.timestampFrom));
-        return;
-      }
     }
 
     // Process Hifz Looping if active
     final loop = _loopConfig;
-    if (loop != null && loop.isActive) {
-      final startIndex = _getVerseIndex(loop.startVerseKey);
-      final endIndex = _getVerseIndex(loop.endVerseKey);
-      final activeIndex = _getVerseIndex(activeKey);
-
-      if (startIndex == -1 || endIndex == -1 || activeIndex == -1) return;
-
-      // Ensure player remains inside the loop range boundaries
-      final startTiming = _timings[startIndex];
-      final endTiming = _timings[endIndex];
+    if (loop != null && loop.isActive && _lastTrackedIndex != currentIndex) {
+      final startIndex = _getIndexForKey(loop.startVerseKey);
+      final endIndex = _getIndexForKey(loop.endVerseKey);
+      
+      if (startIndex == -1 || endIndex == -1) return;
 
       // 1. If position goes beyond the end of the whole range
-      if (ms >= endTiming.timestampTo) {
+      if (currentIndex > endIndex) {
         _currentRangeRepeatCount++;
         rangeRepeat.value = _currentRangeRepeatCount;
         if (_currentRangeRepeatCount < loop.rangeRepetitions) {
           // Loop the entire range again
           _currentVerseRepeatCount = 0;
           verseRepeat.value = 0;
-          _player.seek(Duration(milliseconds: startTiming.timestampFrom));
+          _player.seek(Duration.zero, index: startIndex);
           return;
         } else {
           // Finished all loop iterations
@@ -233,30 +204,33 @@ class AudioService extends GetxService {
       }
 
       // 2. Handle single-verse repetitions
-      if (_lastTrackedVerseKey != activeKey) {
-        // Position changed to a new verse, reset verse repeat counter
-        _lastTrackedVerseKey = activeKey;
-        _currentVerseRepeatCount = 0;
-        verseRepeat.value = 0;
-      }
-
-      // If active verse is within range, check if it reached the end of its duration
-      final currentTiming = _timings[activeIndex];
-      // We give a small buffer (e.g. 150ms) to seek back smoothly before transition
-      if (ms >= currentTiming.timestampTo - 200) {
+      if (_lastTrackedIndex != null && _lastTrackedIndex == currentIndex - 1) {
+        // We just advanced to the next track. Let's see if we should repeat the previous track
         if (_currentVerseRepeatCount < loop.verseRepetitions - 1) {
           _currentVerseRepeatCount++;
           verseRepeat.value = _currentVerseRepeatCount;
-          _player.seek(Duration(milliseconds: currentTiming.timestampFrom));
+          _player.seek(Duration.zero, index: _lastTrackedIndex);
+          return; // Don't update lastTrackedIndex so we repeat
+        } else {
+          // Finished repeating this verse, move on.
+          _currentVerseRepeatCount = 0;
+          verseRepeat.value = 0;
         }
+      } else if (_lastTrackedIndex != currentIndex) {
+         _currentVerseRepeatCount = 0;
+         verseRepeat.value = 0;
       }
+      _lastTrackedIndex = currentIndex;
+    } else {
+      _lastTrackedIndex = currentIndex;
     }
   }
 
   @override
   void onClose() {
-    _positionSub?.cancel();
     _playerStateSub?.cancel();
+    _currentIndexSub?.cancel();
+    _positionSub?.cancel();
     _durationSub?.cancel();
     _player.dispose();
     super.onClose();

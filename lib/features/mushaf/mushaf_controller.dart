@@ -53,14 +53,14 @@ class MushafController extends GetxController {
     }
   }
 
-  bool isChapterDownloaded(int chapterId) {
+  bool isChapterDownloaded(Chapter chapter) {
     final reciterId = _storage.getSelectedReciterId();
-    return _storage.isChapterDownloaded(reciterId, chapterId);
+    return _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
   }
 
   Future<void> handleDownload(Chapter chapter) async {
     final reciterId = _storage.getSelectedReciterId();
-    final isDownloaded = isChapterDownloaded(chapter.id);
+    final isDownloaded = isChapterDownloaded(chapter);
 
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
@@ -104,13 +104,12 @@ class MushafController extends GetxController {
       );
 
       try {
-        final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
-        final audioUrl = audioData['audio_url'] as String?;
-        if (audioUrl == null) {
+        final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
+        if (audioUrls.isEmpty) {
           throw Exception('عذراً، لم نتمكن من الحصول على رابط التحميل.');
         }
 
-        await _download.downloadChapter(reciterId, chapter.id, audioUrl);
+        await _download.downloadChapter(reciterId, chapter.id, audioUrls);
         filteredChapters.refresh();
         Get.snackbar(
           'نجاح التحميل',

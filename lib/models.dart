@@ -21,27 +21,25 @@ class Chapter {
 
   factory Chapter.fromJson(Map<String, dynamic> json) {
     return Chapter(
-      id: json['id'] as int,
-      nameSimple: json['name_simple'] as String,
-      nameComplex: json['name_complex'] as String,
-      nameArabic: json['name_arabic'] as String,
-      versesCount: json['verses_count'] as int,
-      revelationPlace: json['revelation_place'] as String,
-      revelationOrder: json['revelation_order'] as int,
-      translatedName: (json['translated_name'] as Map<String, dynamic>)['name'] as String,
+      id: json['number'] as int,
+      nameSimple: json['englishName'] as String,
+      nameComplex: json['englishName'] as String,
+      nameArabic: json['name'] as String,
+      versesCount: json['numberOfAyahs'] as int,
+      revelationPlace: json['revelationType'] as String,
+      revelationOrder: 0,
+      translatedName: json['englishNameTranslation'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name_simple': nameSimple,
-      'name_complex': nameComplex,
-      'name_arabic': nameArabic,
-      'verses_count': versesCount,
-      'revelation_place': revelationPlace,
-      'revelation_order': revelationOrder,
-      'translated_name': {'name': translatedName},
+      'number': id,
+      'englishName': nameSimple,
+      'name': nameArabic,
+      'numberOfAyahs': versesCount,
+      'revelationType': revelationPlace,
+      'englishNameTranslation': translatedName,
     };
   }
 }
@@ -66,34 +64,29 @@ class Verse {
   });
 
   factory Verse.fromJson(Map<String, dynamic> json) {
-    String transText = '';
-    if (json['translations'] != null && (json['translations'] as List).isNotEmpty) {
-      transText = json['translations'][0]['text'] as String;
-      // Strip HTML tags from translation text
-      transText = transText.replaceAll(RegExp(r'<[^>]*>|&nbsp;'), '');
-    }
+    String transText = json['translationText'] as String? ?? '';
+    // Strip HTML tags from translation text
+    transText = transText.replaceAll(RegExp(r'<[^>]*>|&nbsp;'), '');
     return Verse(
-      id: json['id'] as int,
-      verseNumber: json['verse_number'] as int,
-      verseKey: json['verse_key'] as String,
-      textUthmani: json['text_uthmani'] as String? ?? '',
+      id: json['number'] as int,
+      verseNumber: json['numberInSurah'] as int,
+      verseKey: json['verseKey'] as String? ?? '${json['surah_number'] ?? 1}:${json['numberInSurah']}',
+      textUthmani: json['text'] as String? ?? '',
       translationText: transText,
-      juzNumber: json['juz_number'] as int? ?? 1,
-      pageNumber: json['page_number'] as int? ?? 1,
+      juzNumber: json['juz'] as int? ?? 1,
+      pageNumber: json['page'] as int? ?? 1,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'verse_number': verseNumber,
-      'verse_key': verseKey,
-      'text_uthmani': textUthmani,
-      'translations': [
-        {'text': translationText}
-      ],
-      'juz_number': juzNumber,
-      'page_number': pageNumber,
+      'number': id,
+      'numberInSurah': verseNumber,
+      'verseKey': verseKey,
+      'text': textUthmani,
+      'translationText': translationText,
+      'juz': juzNumber,
+      'page': pageNumber,
     };
   }
 }
@@ -118,38 +111,6 @@ class Reciter {
     return {
       'id': id,
       'reciter_name': name,
-    };
-  }
-}
-
-class VerseTiming {
-  final String verseKey;
-  final int timestampFrom;
-  final int timestampTo;
-  final int duration;
-
-  VerseTiming({
-    required this.verseKey,
-    required this.timestampFrom,
-    required this.timestampTo,
-    required this.duration,
-  });
-
-  factory VerseTiming.fromJson(Map<String, dynamic> json) {
-    return VerseTiming(
-      verseKey: json['verse_key'] as String,
-      timestampFrom: json['timestamp_from'] as int,
-      timestampTo: json['timestamp_to'] as int,
-      duration: json['duration'] as int,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'verse_key': verseKey,
-      'timestamp_from': timestampFrom,
-      'timestamp_to': timestampTo,
-      'duration': duration,
     };
   }
 }

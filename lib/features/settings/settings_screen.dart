@@ -75,6 +75,19 @@ class SettingsScreen extends GetView<SettingsController> {
                           DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
                           DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
                           DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
+                          DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
+                          DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
+                          DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
+                          DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
+                          DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
+                          DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
+                          DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
+                          DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
+                          DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
+                          DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
+                          DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
+                          DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
+                          DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
                         ],
                         onChanged: (val) {
                           if (val != null) controller.updateReciter(val);
@@ -83,14 +96,14 @@ class SettingsScreen extends GetView<SettingsController> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
-                    if (reciterId != 7) ...[
+                    if (reciterId == 6 || reciterId == 2 || reciterId == 9) ...[
                       ListTile(
-                        title: const Text('رواية/أسلوب التلاوة'),
+                        title: const Text('أسلوب التلاوة / Way of Recitation'),
                         subtitle: Text(reciterId == 6
-                            ? 'مرتّل أو معلّم (تعليمي)'
-                            : 'مرتّل أو مجوّد (بالأحكام والأنغام)'),
+                            ? 'اختر بين المرتل والمجود والمعلم'
+                            : 'اختر بين المرتل والمجود'),
                         trailing: DropdownButton<String>(
-                          value: style,
+                          value: style == 'teacher' && reciterId != 6 ? 'murattal' : style,
                           dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
                           style: TextStyle(
                             color: isDark ? Colors.white : Colors.black87,
@@ -100,7 +113,8 @@ class SettingsScreen extends GetView<SettingsController> {
                           items: reciterId == 6
                               ? const [
                                   DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                  DropdownMenuItem(value: 'mujawwad', child: Text('معلّم')),
+                                  DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                                  DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
                                 ]
                               : const [
                                   DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),

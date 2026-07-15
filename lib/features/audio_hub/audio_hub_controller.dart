@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/api_service.dart';
@@ -60,14 +61,14 @@ class AudioHubController extends GetxController {
     }
   }
 
-  bool isChapterDownloaded(int chapterId) {
+  bool isChapterDownloaded(Chapter chapter) {
     final reciterId = _storage.getEffectiveReciterId();
-    return _storage.isChapterDownloaded(reciterId, chapterId);
+    return _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
   }
 
   Future<void> handleDownload(Chapter chapter) async {
     final reciterId = _storage.getEffectiveReciterId();
-    final isDownloaded = isChapterDownloaded(chapter.id);
+    final isDownloaded = isChapterDownloaded(chapter);
 
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
@@ -104,11 +105,10 @@ class AudioHubController extends GetxController {
       }
     } else {
       try {
-        final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
-        final audioUrl = audioData['audio_url'] as String?;
-        if (audioUrl == null) throw Exception('رابط التحميل غير متوفر.');
+        final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
+        if (audioUrls.isEmpty) throw Exception('رابط التحميل غير متوفر.');
 
-        await _download.downloadChapter(reciterId, chapter.id, audioUrl);
+        await _download.downloadChapter(reciterId, chapter.id, audioUrls);
         filteredChapters.refresh();
       } catch (e) {
         Get.snackbar(
@@ -136,16 +136,15 @@ class AudioHubController extends GetxController {
     for (int i = 0; i < chapters.length; i++) {
       if (!isBulkDownloading.value) break; // Bulk process cancelled
       final chapter = chapters[i];
-      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id);
+      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
 
       if (!isDownloaded) {
         bulkDownloadId.value = chapter.id;
 
         try {
-          final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
-          final audioUrl = audioData['audio_url'] as String?;
-          if (audioUrl != null) {
-            await _download.downloadChapter(reciterId, chapter.id, audioUrl);
+          final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
+          if (audioUrls.isNotEmpty) {
+            await _download.downloadChapter(reciterId, chapter.id, audioUrls);
           }
         } catch (e) {
           debugPrint('Bulk download error for chapter ${chapter.id}: $e');
@@ -205,7 +204,7 @@ class AudioHubController extends GetxController {
       isLoading.value = true;
 
       for (var chapter in chapters) {
-        if (_storage.isChapterDownloaded(reciterId, chapter.id)) {
+        if (_storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount)) {
           await _download.deleteChapter(reciterId, chapter.id);
         }
       }
@@ -224,28 +223,33 @@ class AudioHubController extends GetxController {
 
   Future<void> playSurah(Chapter chapter) async {
     final reciterId = _storage.getEffectiveReciterId();
-    final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id);
-    List<VerseTiming> timings = [];
-    String? audioUrl;
+    final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
+    List<String> audioPathsOrUrls = [];
 
     if (isDownloaded) {
-      final cached = _storage.getCachedTimings(reciterId, chapter.id);
-      if (cached != null) {
-        timings = cached;
+      final dirPath = _storage.getDownloadedAudioDirectory(reciterId, chapter.id);
+      if (dirPath != null && Directory(dirPath).existsSync()) {
+        audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
       }
+    }
+
+    if (audioPathsOrUrls.isEmpty) {
       try {
-        await _audio.playSurah(chapter, null, timings);
+        audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
+      } catch (e) {
+        Get.snackbar(
+          'فشل تشغيل الصوت',
+          'فشل تشغيل الصوت: ${e.toString()}',
+          backgroundColor: Colors.red[800],
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
         return;
-      } catch (_) {
-        // Fallback to online if local load fails
       }
     }
 
     try {
-      final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
-      audioUrl = audioData['audio_url'] as String?;
-      timings = audioData['timings'] as List<VerseTiming>? ?? [];
-      await _audio.playSurah(chapter, audioUrl, timings);
+      await _audio.playSurah(chapter, audioPathsOrUrls);
     } catch (e) {
       Get.snackbar(
         'فشل تشغيل الصوت',
@@ -259,7 +263,13 @@ class AudioHubController extends GetxController {
 
   Future<void> updateReciter(int reciterId) async {
     await _storage.setSelectedReciterId(reciterId);
-    if (reciterId == 7) {
+    
+    final currentStyle = _storage.getSelectedStyle();
+    if (reciterId == 10) {
+      await _storage.setSelectedStyle('teacher');
+    } else if (reciterId != 6 && currentStyle == 'teacher') {
+      await _storage.setSelectedStyle('murattal');
+    } else if (reciterId != 6 && reciterId != 2 && reciterId != 9 && currentStyle == 'mujawwad') {
       await _storage.setSelectedStyle('murattal');
     }
     filteredChapters.refresh();

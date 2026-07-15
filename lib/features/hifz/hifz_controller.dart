@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/audio_service.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
@@ -86,28 +88,43 @@ class HifzController extends GetxController {
     isHifzActive.value = true;
 
     try {
-      final verses = await _api.fetchVerses(chapter.id);
-      hifzVerses.assignAll(verses.where((v) => v.verseNumber >= startAyah && v.verseNumber <= endAyah).toList());
+      // Get local ayahs from quran_library and map to Verse models using local translation
+      final localAyahs = QuranCtrl.instance.surahs[chapter.id - 1].ayahs;
+      await TafsirCtrl.instance.initTafsir();
+      await TafsirCtrl.instance.fetchTranslate();
+      final mappedVerses = localAyahs.map((a) {
+        final verseKey = '${chapter.id}:${a.ayahNumber}';
+        final translation = TafsirCtrl.instance.getTranslationText(chapter.id, a.ayahNumber);
+        return Verse(
+          id: a.ayahUQNumber,
+          verseNumber: a.ayahNumber,
+          verseKey: verseKey,
+          textUthmani: a.text,
+          translationText: translation,
+          juzNumber: a.juz,
+          pageNumber: a.page,
+        );
+      }).toList();
+      hifzVerses.assignAll(mappedVerses.where((v) => v.verseNumber >= startAyah && v.verseNumber <= endAyah).toList());
 
       final reciterId = _storage.getEffectiveReciterId();
-      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id);
+      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
 
-      String? audioUrl;
-      List<VerseTiming> timings = [];
+      List<String> audioPathsOrUrls = [];
 
       if (isDownloaded) {
-        final cached = _storage.getCachedTimings(reciterId, chapter.id);
-        if (cached != null) {
-          timings = cached;
+        final dirPath = _storage.getDownloadedAudioDirectory(reciterId, chapter.id);
+        if (dirPath != null && Directory(dirPath).existsSync()) {
+          audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
         }
-      } else {
-        final audioData = await _api.fetchChapterAudioAndTimings(reciterId, chapter.id);
-        audioUrl = audioData['audio_url'] as String?;
-        timings = audioData['timings'] as List<VerseTiming>? ?? [];
+      } 
+      
+      if (audioPathsOrUrls.isEmpty) {
+        audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
       }
 
-      if (timings.isEmpty) {
-        throw Exception('بيانات التوقيت غير متوفرة لهذه السورة.');
+      if (audioPathsOrUrls.isEmpty) {
+        throw Exception('الروابط غير متوفرة لهذه السورة.');
       }
 
       final config = HifzLoopConfig(
@@ -117,7 +134,7 @@ class HifzController extends GetxController {
         rangeRepetitions: rangeRepetitions.value,
       );
 
-      await _audio.playHifz(chapter, audioUrl, timings, config);
+      await _audio.playHifz(chapter, audioPathsOrUrls, config);
     } catch (e) {
       Get.snackbar('خطأ حلقة الحفظ', 'فشل بدء حلقة الحفظ: ${e.toString()}', snackPosition: SnackPosition.BOTTOM);
       isHifzActive.value = false;
@@ -136,9 +153,19 @@ class HifzController extends GetxController {
   Future<void> updateReciter(int id) async {
     selectedReciterId.value = id;
     await _storage.setSelectedReciterId(id);
-    if (id != 6) {
+    
+    final currentStyle = _storage.getSelectedStyle();
+    if (id == 10) {
+      await _storage.setSelectedStyle('teacher');
+      selectedStyle.value = 'teacher';
+    } else if (id != 6 && currentStyle == 'teacher') {
       await _storage.setSelectedStyle('murattal');
       selectedStyle.value = 'murattal';
+    } else if (id != 6 && id != 2 && id != 9 && currentStyle == 'mujawwad') {
+      await _storage.setSelectedStyle('murattal');
+      selectedStyle.value = 'murattal';
+    } else {
+      selectedStyle.value = currentStyle;
     }
   }
 

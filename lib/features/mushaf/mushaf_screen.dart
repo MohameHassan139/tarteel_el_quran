@@ -147,18 +147,23 @@ class MushafScreen extends GetView<MushafController> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          chapter.nameArabic,
-                          style: const TextStyle(
-                            fontFamily: 'UthmanicHafs',
-                            fontSize: 20,
-                            color: AppColors.primary,
+                        Flexible(
+                          child: Text(
+                            chapter.nameArabic,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'UthmanicHafs',
+                              fontSize: 20,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         // Download progress / trigger button
                         Obx(() {
-                          final isDownloaded = controller.isChapterDownloaded(chapter.id);
+                          final isDownloaded = controller.isChapterDownloaded(
+                            chapter,
+                          );
                           final progress = downloadService.getProgress(reciterId, chapter.id);
 
                           if (progress != null) {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/audio_service.dart';
-import '../../core/storage_service.dart';
 import '../../models.dart';
 import 'hifz_controller.dart';
 import '../../core/app_colors.dart';
@@ -376,6 +375,19 @@ class HifzScreen extends GetView<HifzController> {
                   DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
                   DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
                   DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
+                  DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
+                  DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
+                  DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
+                  DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
+                  DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
+                  DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
+                  DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
+                  DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
+                  DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
+                  DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
+                  DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
+                  DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
+                  DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
                 ],
                 onChanged: (val) {
                   if (val != null) {
@@ -383,7 +395,7 @@ class HifzScreen extends GetView<HifzController> {
                   }
                 },
               ),
-              if (controller.selectedReciterId.value == 6) ...[
+              if (controller.selectedReciterId.value == 6 || controller.selectedReciterId.value == 2 || controller.selectedReciterId.value == 9) ...[
                 const SizedBox(height: 16),
                   const Text(
                   'رواية/أسلوب التلاوة',
@@ -391,7 +403,9 @@ class HifzScreen extends GetView<HifzController> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: controller.selectedStyle.value,
+                  value: controller.selectedStyle.value == 'teacher' && controller.selectedReciterId.value != 6 
+                      ? 'murattal' 
+                      : controller.selectedStyle.value,
                   dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                   decoration: InputDecoration(
                     filled: true,
@@ -399,10 +413,16 @@ class HifzScreen extends GetView<HifzController> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
-                  items: const [
-                    DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                    DropdownMenuItem(value: 'mujawwad', child: Text('معلّم')),
-                  ],
+                  items: controller.selectedReciterId.value == 6
+                      ? const [
+                          DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
+                          DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                          DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
+                        ]
+                      : const [
+                          DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
+                          DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                        ],
                   onChanged: (val) {
                     if (val != null) {
                       controller.updateStyle(val);

@@ -29,7 +29,15 @@ class SettingsController extends GetxController {
   Future<void> updateReciter(int id) async {
     await _storage.setSelectedReciterId(id);
     selectedReciterId.value = id;
-    if (id == 7) {
+    
+    final currentStyle = selectedStyle.value;
+    if (id == 10) {
+      await _storage.setSelectedStyle('teacher');
+      selectedStyle.value = 'teacher';
+    } else if (id != 6 && currentStyle == 'teacher') {
+      await _storage.setSelectedStyle('murattal');
+      selectedStyle.value = 'murattal';
+    } else if (id != 6 && id != 2 && id != 9 && currentStyle == 'mujawwad') {
       await _storage.setSelectedStyle('murattal');
       selectedStyle.value = 'murattal';
     }
@@ -47,11 +55,10 @@ class SettingsController extends GetxController {
     selectedStyle.value = style;
 
     String styleAr = '';
-    if (selectedReciterId.value == 6) {
-      styleAr = style == 'mujawwad' ? 'معلّم' : 'مرتّل';
-    } else {
-      styleAr = style == 'mujawwad' ? 'مجوّد' : 'مرتّل';
-    }
+    if (style == 'murattal') styleAr = 'مرتّل';
+    if (style == 'mujawwad') styleAr = 'مجوّد';
+    if (style == 'teacher') styleAr = 'معلّم (تعليمي)';
+
     Get.snackbar(
       'نمط التلاوة',
       'تم اختيار رواية/نمط التلاوة: $styleAr',
