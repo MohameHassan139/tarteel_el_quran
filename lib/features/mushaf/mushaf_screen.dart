@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:quran_library/quran_library.dart';
 import '../../routes/app_routes.dart';
 import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
@@ -15,11 +16,13 @@ class MushafScreen extends GetView<MushafController> {
     final downloadService = Get.find<DownloadService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final isAr = storage.getAppLanguage() == 'ar';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'المصحف الشريف',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        title: Text(
+          isAr ? 'المصحف الشريف' : 'Holy Quran',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -32,7 +35,7 @@ class MushafScreen extends GetView<MushafController> {
             child: TextField(
               controller: controller.searchController,
               decoration: InputDecoration(
-                hintText: 'ابحث عن السورة...',
+                hintText: isAr ? 'ابحث عن السورة...' : 'Search Surah...',
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                 filled: true,
                 fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
@@ -96,6 +99,17 @@ class MushafScreen extends GetView<MushafController> {
                   final chapter = controller.filteredChapters[index];
                   final reciterId = storage.getSelectedReciterId();
                   
+                  // Retrieve corresponding surah details from quran_library
+                  final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
+
+                  final displayName = isAr
+                      ? (quranLibrarySurah?.name ?? chapter.nameArabic)
+                      : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
+
+                  final displaySubtitle = isAr
+                      ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'مكية' : 'مدنية'} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} آية"
+                      : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} verses";
+
                   return ListTile(
                     onTap: () {
                       Get.toNamed(AppRoutes.MUSHAF_VIEW, arguments: chapter);
@@ -118,27 +132,15 @@ class MushafScreen extends GetView<MushafController> {
                         ),
                       ),
                     ),
-                    title: Row(
-                      children: [
-                        Text(
-                          chapter.nameSimple,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '(${chapter.versesCount} آيات)',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    title: Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     subtitle: Text(
-                      chapter.translatedName,
+                      displaySubtitle,
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 13,
@@ -147,18 +149,21 @@ class MushafScreen extends GetView<MushafController> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(
-                          child: Text(
-                            chapter.nameArabic,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'UthmanicHafs',
-                              fontSize: 20,
-                              color: AppColors.primary,
+                        // Show Arabic name on the trailing side only if layout language is not Arabic
+                        if (!isAr) ...[
+                          Flexible(
+                            child: Text(
+                              quranLibrarySurah?.name ?? chapter.nameArabic,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'UthmanicHafs',
+                                fontSize: 20,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
+                        ],
                         // Download progress / trigger button
                         Obx(() {
                           final isDownloaded = controller.isChapterDownloaded(

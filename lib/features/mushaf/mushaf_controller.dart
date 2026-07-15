@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/api_service.dart';
 import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
@@ -28,6 +29,9 @@ class MushafController extends GetxController {
     isLoading.value = true;
     errorMessage.value = '';
     try {
+      // Ensure local quran_library core data is fully loaded
+      await QuranCtrl.instance.ensureCoreDataLoaded();
+      
       final list = await _api.fetchChapters();
       chapters.assignAll(list);
       filteredChapters.assignAll(list);
@@ -41,16 +45,52 @@ class MushafController extends GetxController {
   }
 
   void filterChapters() {
-    final query = searchController.text.toLowerCase();
+    final query = searchController.text.toLowerCase().trim();
     if (query.isEmpty) {
       filteredChapters.assignAll(chapters);
     } else {
       filteredChapters.assignAll(chapters.where((chapter) {
+        // Retrieve matching surah in quran_library
+        final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
+        
+        if (quranLibrarySurah != null) {
+          final normalizedQuery = _normalizeArabic(query);
+          final normalizedArabic = _normalizeArabic(quranLibrarySurah.name);
+          final normalizedEnglish = quranLibrarySurah.englishName.toLowerCase();
+          final normalizedTranslation = quranLibrarySurah.englishNameTranslation.toLowerCase();
+          
+          return normalizedArabic.contains(normalizedQuery) ||
+              normalizedEnglish.contains(query) ||
+              normalizedTranslation.contains(query) ||
+              quranLibrarySurah.number.toString() == query;
+        }
+
+        // Fallback search using API chapter fields
         return chapter.nameSimple.toLowerCase().contains(query) ||
             chapter.nameArabic.contains(query) ||
-            chapter.translatedName.toLowerCase().contains(query);
+            chapter.translatedName.toLowerCase().contains(query) ||
+            chapter.id.toString() == query;
       }).toList());
     }
+  }
+
+  String _normalizeArabic(String text) {
+    // Remove Arabic diacritics (tashkeel)
+    final diacritics = RegExp(r'[\u064B-\u0652\u0670]');
+    String cleaned = text.replaceAll(diacritics, '');
+    
+    // Normalize specific characters
+    cleaned = cleaned
+        .replaceAll('ة', 'ه')
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ى', 'ي')
+        .replaceAll('ئ', 'ي')
+        .replaceAll('ؤ', 'و')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return cleaned;
   }
 
   bool isChapterDownloaded(Chapter chapter) {
