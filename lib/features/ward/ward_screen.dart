@@ -46,7 +46,7 @@ class WardScreen extends GetView<WardController> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = controller.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -97,7 +97,7 @@ class WardScreen extends GetView<WardController> {
                             child: CircularProgressIndicator(
                               value: progress.clamp(0.0, 1.0),
                               strokeWidth: 12,
-                              backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
+                              backgroundColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                             ),
                           ),

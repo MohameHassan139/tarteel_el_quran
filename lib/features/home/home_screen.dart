@@ -16,7 +16,7 @@ class HomeScreen extends GetView<HomeController> {
     required Color color,
     required String routeName,
   }) {
-    final isDark = controller.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Card(
       elevation: 4,
@@ -126,7 +126,7 @@ class HomeScreen extends GetView<HomeController> {
                     final goal = controller.wardGoal.value;
                     final completedMinutes = (goal.activeSecondsToday / 60).floor();
                     final progress = goal.targetMinutes > 0 ? (completedMinutes / goal.targetMinutes) : 0.0;
-                    final isDark = controller.isDarkMode();
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
 
                     return Card(
                       color: isDark ? AppColors.cardDark : AppColors.cardLight,
@@ -163,7 +163,7 @@ class HomeScreen extends GetView<HomeController> {
                               child: LinearProgressIndicator(
                                 value: progress.clamp(0.0, 1.0),
                                 minHeight: 8,
-                                backgroundColor: isDark ? Colors.grey[850] : Colors.grey[300],
+                                backgroundColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                               ),
                             ),

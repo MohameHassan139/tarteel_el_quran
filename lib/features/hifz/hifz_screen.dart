@@ -12,8 +12,7 @@ class HifzScreen extends GetView<HifzController> {
 
   @override
   Widget build(BuildContext context) {
-    final storage = Get.find<StorageService>();
-    final isDark = storage.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final audio = Get.find<AudioService>();
 
     return Obx(() {
@@ -231,7 +230,7 @@ class HifzScreen extends GetView<HifzController> {
                 dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                  fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
                 items: controller.chapters.map((chapter) {
@@ -263,7 +262,7 @@ class HifzScreen extends GetView<HifzController> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                              filled: true,
-                             fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                             fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                            ),
                         ),
@@ -282,7 +281,7 @@ class HifzScreen extends GetView<HifzController> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                            fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           ),
                         ),
@@ -305,7 +304,7 @@ class HifzScreen extends GetView<HifzController> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                        color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonHideUnderline(
@@ -329,7 +328,7 @@ class HifzScreen extends GetView<HifzController> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                        color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonHideUnderline(
@@ -368,7 +367,7 @@ class HifzScreen extends GetView<HifzController> {
                 dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                  fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
@@ -396,7 +395,7 @@ class HifzScreen extends GetView<HifzController> {
                   dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                    fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),

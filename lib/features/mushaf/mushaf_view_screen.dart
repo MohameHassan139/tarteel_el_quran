@@ -34,7 +34,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = controller.storage.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAr = controller.storage.getAppLanguage() == 'ar';
 
     return Scaffold(
@@ -408,7 +408,6 @@ class _AyahDetailsSheet extends StatefulWidget {
 
 class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
   final ApiService _api = Get.find<ApiService>();
-  final StorageService _storage = Get.find<StorageService>();
 
   String? _tafsirText;
   bool _isLoadingTafsir = true;
@@ -449,7 +448,7 @@ class _AyahDetailsSheetState extends State<_AyahDetailsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = _storage.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final sheetBg = isDark ? const Color(0xFF161616) : Colors.white;
     final handleColor = isDark ? Colors.white24 : Colors.black26;
 
@@ -704,7 +703,7 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Get.find<StorageService>().isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final chipBg = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04);
     final color = isDark ? Colors.grey[400] : Colors.grey[700];
 

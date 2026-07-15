@@ -13,7 +13,7 @@ class MushafScreen extends GetView<MushafController> {
   Widget build(BuildContext context) {
     final storage = Get.find<StorageService>();
     final downloadService = Get.find<DownloadService>();
-    final isDark = storage.isDarkMode();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -35,7 +35,7 @@ class MushafScreen extends GetView<MushafController> {
                 hintText: 'ابحث عن السورة...',
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                 filled: true,
-                fillColor: isDark ? AppColors.secondaryDark : Colors.grey[200],
+                fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -90,7 +90,7 @@ class MushafScreen extends GetView<MushafController> {
                 itemCount: controller.filteredChapters.length,
                 separatorBuilder: (context, index) => Divider(
                   height: 1,
-                  color: isDark ? Colors.grey[900] : Colors.grey[300],
+                  color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
                 ),
                 itemBuilder: (context, index) {
                   final chapter = controller.filteredChapters[index];

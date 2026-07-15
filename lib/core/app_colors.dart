@@ -7,9 +7,9 @@ class AppColors {
   static const Color accentLight = Color(0xFFF5E6CA);   // Lighter Gold for subtle highlights
 
   // Light Mode Theme Colors
-  static const Color bgLight = Color(0xFFF5FAF9);       // Pale teal-tinted off-white
-  static const Color cardLight = Color(0xFFEBF3F2);     // Soft teal card background
-  static const Color secondaryLight = Color(0xFFDDF0ED); // Secondary helper color in light mode
+  static const Color bgLight = Color(0xFFFAFAFA);       // Clean off-white
+  static const Color cardLight = Color(0xFFFFFFFF);     // Pure white card background
+  static const Color secondaryLight = Color(0xFFF0F5F4); // Very light grey-teal helper color
 
   // Dark Mode Theme Colors
   static const Color bgDark = Color(0xFF0A1415);        // Deep dark slate-teal background

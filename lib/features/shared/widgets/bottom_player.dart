@@ -134,7 +134,7 @@ class BottomPlayer extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Get.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                  color: Get.isDarkMode ? AppColors.secondaryDark : AppColors.secondaryLight,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -198,7 +198,7 @@ class BottomPlayer extends StatelessWidget {
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: AppColors.primary,
-                        inactiveTrackColor: Get.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        inactiveTrackColor: Get.isDarkMode ? AppColors.secondaryDark : AppColors.secondaryLight,
                         thumbColor: AppColors.primary,
                         trackHeight: 4.0,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
