@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:get/get.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/audio_service.dart';
 import '../../core/api_service.dart';
@@ -31,6 +31,11 @@ class MushafViewController extends GetxController {
     chapter = Get.arguments as Chapter;
     _loadAudioFuture = _loadAudio();
     _startStopwatch();
+
+    // Keep screen on if setting is enabled
+    if (storage.getKeepScreenOn()) {
+      WakelockPlus.enable();
+    }
     
     // Listen to active verse changes
     _activeVerseSub = audio.activeVerseKey.listen((key) {
@@ -174,6 +179,8 @@ class MushafViewController extends GetxController {
 
   @override
   void onClose() {
+    // Disable screen wakelock
+    WakelockPlus.disable();
     _stopwatchTimer?.cancel();
     _activeVerseSub?.cancel();
     _selectedAyahSub?.cancel();

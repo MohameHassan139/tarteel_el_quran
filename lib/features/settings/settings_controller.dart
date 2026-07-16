@@ -12,6 +12,7 @@ class SettingsController extends GetxController {
   final RxString selectedStyle = 'murattal'.obs;
   final RxBool isDarkMode = true.obs;
   final RxString appLanguage = 'ar'.obs;
+  final RxBool keepScreenOn = true.obs;
 
   @override
   void onInit() {
@@ -24,6 +25,7 @@ class SettingsController extends GetxController {
     selectedStyle.value = _storage.getSelectedStyle();
     isDarkMode.value = _storage.isDarkMode();
     appLanguage.value = _storage.getAppLanguage();
+    keepScreenOn.value = _storage.getKeepScreenOn();
   }
 
   Future<void> updateReciter(int id) async {
@@ -78,6 +80,11 @@ class SettingsController extends GetxController {
     await _storage.setAppLanguage(value);
     appLanguage.value = value;
     Get.updateLocale(Locale(value));
+  }
+
+  Future<void> toggleKeepScreenOn(bool value) async {
+    await _storage.setKeepScreenOn(value);
+    keepScreenOn.value = value;
   }
 
   Future<void> triggerTestNotification() async {

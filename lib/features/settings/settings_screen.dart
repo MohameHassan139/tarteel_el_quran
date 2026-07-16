@@ -133,8 +133,17 @@ class SettingsScreen extends GetView<SettingsController> {
                       title: const Text('المظهر الداكن'),
                       subtitle: const Text('تفعيل الخلفيات الداكنة لراحة العينين'),
                       value: isDark,
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                       onChanged: (val) => controller.toggleTheme(val),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+
+                    SwitchListTile(
+                      title: const Text('إبقاء الشاشة مضيئة'),
+                      subtitle: const Text('منع انطفاء الشاشة أثناء قراءة المصحف الشريف'),
+                      value: controller.keepScreenOn.value,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (val) => controller.toggleKeepScreenOn(val),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
 

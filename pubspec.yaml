@@ -46,6 +46,7 @@ dependencies:
   timezone: ^0.11.1
   quran_library: ^4.2.0
   get: ^4.6.6
+  wakelock_plus: ^1.6.1
 
 dev_dependencies:
   flutter_test:

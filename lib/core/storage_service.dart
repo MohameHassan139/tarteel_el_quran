@@ -67,6 +67,15 @@ class StorageService extends GetxService {
     await _settingsBox.put('is_dark_mode', isDark);
   }
 
+  bool getKeepScreenOn() {
+    return _settingsBox.get('keep_screen_on', defaultValue: true) as bool;
+  }
+
+  Future<void> setKeepScreenOn(bool value) async {
+    await _settingsBox.put('keep_screen_on', value);
+  }
+
+
   String getAppLanguage() {
     return _settingsBox.get('app_language', defaultValue: 'ar') as String;
   }
