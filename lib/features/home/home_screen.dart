@@ -44,6 +44,8 @@ class HomeScreen extends GetView<HomeController> {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -52,6 +54,8 @@ class HomeScreen extends GetView<HomeController> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 12,
@@ -82,26 +86,28 @@ class HomeScreen extends GetView<HomeController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ترتيل القرآن',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'app_title'.tr,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'بوابة القراءة والاستماع والحفظ',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey,
+                            const SizedBox(height: 4),
+                            Text(
+                              'app_subtitle'.tr,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Row(
                         children: [
@@ -140,15 +146,18 @@ class HomeScreen extends GetView<HomeController> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'الورد اليومي',
-                                  style: TextStyle(
+                                Text(
+                                  'daily_ward'.tr,
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
                                 Text(
-                                  '$completedMinutes من ${goal.targetMinutes} دقيقة',
+                                  'minutes_of_target'.trParams({
+                                    'completed': '$completedMinutes',
+                                    'target': '${goal.targetMinutes}',
+                                  }),
                                   style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
@@ -170,8 +179,10 @@ class HomeScreen extends GetView<HomeController> {
                             const SizedBox(height: 12),
                             Text(
                               progress >= 1.0
-                                  ? 'أحسنت! لقد أكملت وردك لليوم 🎉'
-                                  : 'متبقي ${(goal.targetMinutes - completedMinutes).clamp(0, goal.targetMinutes)} دقيقة لإنجاز هدف اليوم.',
+                                  ? 'daily_ward_completed'.tr
+                                  : 'daily_ward_remaining'.trParams({
+                                      'minutes': '${(goal.targetMinutes - completedMinutes).clamp(0, goal.targetMinutes)}'
+                                    }),
                               style: TextStyle(
                                 color: progress >= 1.0 ? AppColors.primary : Colors.grey,
                                 fontSize: 12,
@@ -186,9 +197,9 @@ class HomeScreen extends GetView<HomeController> {
                   const SizedBox(height: 24),
 
                   // Grid Menu Header
-                  const Text(
-                    'الخدمات والميزات',
-                    style: TextStyle(
+                  Text(
+                    'services_and_features'.tr,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -207,32 +218,32 @@ class HomeScreen extends GetView<HomeController> {
                     children: [
                       _buildGridItem(
                         context: context,
-                        title: 'المصحف الشريف',
-                        subtitle: 'قراءة السور وتصفح التفسير',
+                        title: 'mushaf_title'.tr,
+                        subtitle: 'mushaf_subtitle'.tr,
                         icon: Icons.menu_book,
                         color: AppColors.primary,
                         routeName: AppRoutes.MUSHAF,
                       ),
                       _buildGridItem(
                         context: context,
-                        title: 'حفظ القرآن',
-                        subtitle: 'حلقة تكرار وحفظ الآيات',
+                        title: 'hifz_title'.tr,
+                        subtitle: 'hifz_subtitle'.tr,
                         icon: Icons.psychology,
                         color: Colors.blueAccent,
                         routeName: AppRoutes.HIFZ,
                       ),
                       _buildGridItem(
                         context: context,
-                        title: 'الورد والمتابعة',
-                        subtitle: 'سجل الإنجاز والهدف اليومي',
+                        title: 'ward_title'.tr,
+                        subtitle: 'ward_subtitle'.tr,
                         icon: Icons.assignment_turned_in,
                         color: Colors.green,
                         routeName: AppRoutes.WARD,
                       ),
                       _buildGridItem(
                         context: context,
-                        title: 'الاستماع والتحميل',
-                        subtitle: 'تلاوات صوتية وتحميل جماعي',
+                        title: 'audio_hub_title'.tr,
+                        subtitle: 'audio_hub_subtitle'.tr,
                         icon: Icons.headphones,
                         color: Colors.teal,
                         routeName: AppRoutes.AUDIO_HUB,

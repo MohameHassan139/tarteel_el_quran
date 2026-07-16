@@ -23,7 +23,7 @@ class HifzScreen extends GetView<HifzController> {
       return Scaffold(
         backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
         appBar: AppBar(
-          title: const Text('حفظ القرآن الكريم', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text('hifz_quran_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -61,7 +61,7 @@ class HifzScreen extends GetView<HifzController> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'جلسة جديدة',
+                                  'new_session_tab'.tr,
                                   style: TextStyle(
                                     color: isActive ? Colors.white : Colors.grey,
                                     fontWeight: FontWeight.bold,
@@ -95,7 +95,7 @@ class HifzScreen extends GetView<HifzController> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'لوحة الإحصائيات',
+                                  'history_progress_tab'.tr,
                                   style: TextStyle(
                                     color: isActive ? Colors.white : Colors.grey,
                                     fontWeight: FontWeight.bold,
@@ -134,6 +134,7 @@ class HifzScreen extends GetView<HifzController> {
 
   // --- Landing Tab 1: New Session Setup ---
   Widget _buildNewSessionTab(BuildContext context, bool isDark) {
+    final isAr = Get.locale?.languageCode == 'ar';
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -146,7 +147,7 @@ class HifzScreen extends GetView<HifzController> {
             
             final chId = lastSession['chapterId'] as int? ?? 1;
             final chapter = controller.chapters.firstWhereOrNull((c) => c.id == chId);
-            final chName = chapter != null ? chapter.nameArabic : 'البقرة';
+            final chName = chapter != null ? (isAr ? chapter.nameArabic : chapter.nameSimple) : 'Al-Baqarah';
             
             return GestureDetector(
               onTap: () {
@@ -173,13 +174,14 @@ class HifzScreen extends GetView<HifzController> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'متابعة الحفظ الأخير',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
+                            Text(
+                              'hifz_last_session'.tr,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'سورة $chName (الآيات ${lastSession['startAyah']} - ${lastSession['endAyah']})',
+                              isAr ? 'سورة $chName (الآيات ${lastSession['startAyah']} - ${lastSession['endAyah']})'
+                                   : 'Surah $chName (Ayahs ${lastSession['startAyah']} - ${lastSession['endAyah']})',
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                             ),
                           ],
@@ -193,9 +195,9 @@ class HifzScreen extends GetView<HifzController> {
             );
           }),
 
-          const Text(
-            'السورة ونطاق الآيات',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+          Text(
+            'choose_surah'.tr,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
 
@@ -234,12 +236,13 @@ class HifzScreen extends GetView<HifzController> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'سورة ${chapter.nameArabic}',
+                                      isAr ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
                                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'UthmanicHafs'),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${chapter.nameSimple} • ${chapter.revelationPlace == 'Meccan' ? 'مكية' : 'مدنية'} • ${chapter.versesCount} آية',
+                                      isAr ? '${chapter.nameSimple} • ${chapter.revelationPlace == 'Meccan' ? 'revelation_meccan'.tr : 'revelation_medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${chapter.versesCount}'})}'
+                                           : '${chapter.nameSimple} • ${chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${chapter.versesCount}'})}',
                                       style: TextStyle(color: Colors.grey[500], fontSize: 13),
                                     ),
                                   ],
@@ -298,9 +301,9 @@ class HifzScreen extends GetView<HifzController> {
           Obx(() => _buildAyahRangePicker(context, isDark)),
           const SizedBox(height: 24),
 
-          const Text(
-            'خيارات التكرار والتحفيظ',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+          Text(
+            'repetitions_and_delays'.tr,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
 
@@ -318,12 +321,12 @@ class HifzScreen extends GetView<HifzController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('تكرار كل آية', style: TextStyle(fontWeight: FontWeight.w500)),
+                      Text('repeat_each_verse'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
                       DropdownButton<int>(
                         value: controller.verseRepetitions.value,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         items: List.generate(20, (i) => i + 1).map((e) {
-                          return DropdownMenuItem(value: e, child: Text('$e مرات'));
+                          return DropdownMenuItem(value: e, child: Text('times_param'.trParams({'times': '$e'})));
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) controller.verseRepetitions.value = val;
@@ -336,12 +339,12 @@ class HifzScreen extends GetView<HifzController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('تكرار النطاق كاملاً', style: TextStyle(fontWeight: FontWeight.w500)),
+                      Text('repeat_whole_range'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
                       DropdownButton<int>(
                         value: controller.rangeRepetitions.value,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         items: List.generate(10, (i) => i + 1).map((e) {
-                          return DropdownMenuItem(value: e, child: Text('$e مرات'));
+                          return DropdownMenuItem(value: e, child: Text('times_param'.trParams({'times': '$e'})));
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) controller.rangeRepetitions.value = val;
@@ -357,22 +360,22 @@ class HifzScreen extends GetView<HifzController> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('صمت بين الآيات (للتكرار)', style: TextStyle(fontWeight: FontWeight.w500)),
-                          Text('مهلة للتلاوة والاستذكار بنفسك', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                          Text('silence_between_ayahs'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
+                          Text('silence_desc'.tr, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                         ],
                       ),
                       DropdownButton<int>(
                         value: controller.delaySeconds.value,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                        items: const [
-                          DropdownMenuItem(value: 0, child: Text('بدون صمت')),
-                          DropdownMenuItem(value: 1, child: Text('ثانية واحدة')),
-                          DropdownMenuItem(value: 2, child: Text('ثانيتين')),
-                          DropdownMenuItem(value: 3, child: Text('٣ ثوانٍ')),
-                          DropdownMenuItem(value: 5, child: Text('٥ ثوانٍ')),
-                          DropdownMenuItem(value: 8, child: Text('٨ ثوانٍ')),
-                          DropdownMenuItem(value: 10, child: Text('١٠ ثوانٍ')),
-                          DropdownMenuItem(value: 15, child: Text('١٥ ثانية')),
+                        items: [
+                          DropdownMenuItem(value: 0, child: Text('no_silence'.tr)),
+                          DropdownMenuItem(value: 1, child: Text('one_second'.tr)),
+                          DropdownMenuItem(value: 2, child: Text('two_seconds'.tr)),
+                          DropdownMenuItem(value: 3, child: Text('three_seconds'.tr)),
+                          DropdownMenuItem(value: 5, child: Text('five_seconds'.tr)),
+                          DropdownMenuItem(value: 8, child: Text('eight_seconds'.tr)),
+                          DropdownMenuItem(value: 10, child: Text('ten_seconds'.tr)),
+                          DropdownMenuItem(value: 15, child: Text('fifteen_seconds'.tr)),
                         ],
                         onChanged: (val) {
                           if (val != null) controller.delaySeconds.value = val;
@@ -386,9 +389,9 @@ class HifzScreen extends GetView<HifzController> {
           ),
           const SizedBox(height: 24),
 
-          const Text(
-            'إعدادات التلاوة والترجمة',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+          Text(
+            'recitation_settings'.tr,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
 
@@ -406,28 +409,28 @@ class HifzScreen extends GetView<HifzController> {
                   DropdownButtonFormField<int>(
                     value: controller.selectedReciterId.value,
                     dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                    decoration: const InputDecoration(
-                      labelText: 'القارئ المختار للتلاوة',
+                    decoration: InputDecoration(
+                      labelText: 'reciter_selected_for_recitation'.tr,
                       border: InputBorder.none,
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 7, child: Text('مشاري العفاسي')),
-                      DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
-                      DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
-                      DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
-                      DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
-                      DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
-                      DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
-                      DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
-                      DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
-                      DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
-                      DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
-                      DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
-                      DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
-                      DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
-                      DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
-                      DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
-                      DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
+                    items: [
+                      DropdownMenuItem(value: 7, child: Text('reciter_7'.tr)),
+                      DropdownMenuItem(value: 6, child: Text('reciter_6'.tr)),
+                      DropdownMenuItem(value: 2, child: Text('reciter_2'.tr)),
+                      DropdownMenuItem(value: 9, child: Text('reciter_9'.tr)),
+                      DropdownMenuItem(value: 10, child: Text('reciter_10'.tr)),
+                      DropdownMenuItem(value: 3, child: Text('reciter_3'.tr)),
+                      DropdownMenuItem(value: 17, child: Text('reciter_17'.tr)),
+                      DropdownMenuItem(value: 15, child: Text('reciter_15'.tr)),
+                      DropdownMenuItem(value: 20, child: Text('reciter_20'.tr)),
+                      DropdownMenuItem(value: 22, child: Text('reciter_22'.tr)),
+                      DropdownMenuItem(value: 23, child: Text('reciter_23'.tr)),
+                      DropdownMenuItem(value: 11, child: Text('reciter_11'.tr)),
+                      DropdownMenuItem(value: 14, child: Text('reciter_14'.tr)),
+                      DropdownMenuItem(value: 16, child: Text('reciter_16'.tr)),
+                      DropdownMenuItem(value: 18, child: Text('reciter_18'.tr)),
+                      DropdownMenuItem(value: 19, child: Text('reciter_19'.tr)),
+                      DropdownMenuItem(value: 21, child: Text('reciter_21'.tr)),
                     ],
                     onChanged: (val) {
                       if (val != null) {
@@ -442,19 +445,19 @@ class HifzScreen extends GetView<HifzController> {
                           ? 'murattal' 
                           : controller.selectedStyle.value,
                       dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                      decoration: const InputDecoration(
-                        labelText: 'رواية/أسلوب التلاوة',
+                      decoration: InputDecoration(
+                        labelText: 'reciter_style_label'.tr,
                         border: InputBorder.none,
                       ),
                       items: controller.selectedReciterId.value == 6
-                          ? const [
-                              DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                              DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
-                              DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
+                          ? [
+                              DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                              DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
+                              DropdownMenuItem(value: 'teacher', child: Text('teacher'.tr)),
                             ]
-                          : const [
-                              DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                              DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                          : [
+                              DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                              DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
                             ],
                       onChanged: (val) {
                         if (val != null) {
@@ -468,7 +471,7 @@ class HifzScreen extends GetView<HifzController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('عرض الترجمة المرافقة', style: TextStyle(fontWeight: FontWeight.w500)),
+                      Text('show_translation_label'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
                       Switch(
                         value: controller.showTranslation.value,
                         activeColor: AppColors.primary,
@@ -483,8 +486,8 @@ class HifzScreen extends GetView<HifzController> {
                     DropdownButtonFormField<int>(
                       value: controller.selectedTranslationIndex.value,
                       dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                      decoration: const InputDecoration(
-                        labelText: 'اختر لغة الترجمة / التفسير',
+                      decoration: InputDecoration(
+                        labelText: 'choose_translation_lang'.tr,
                         border: InputBorder.none,
                       ),
                       items: controller.availableTranslations.map((item) {
@@ -517,9 +520,9 @@ class HifzScreen extends GetView<HifzController> {
               elevation: 4,
             ),
             icon: const Icon(Icons.play_arrow_rounded, size: 28),
-            label: const Text(
-              'ابدأ مساحة الحفظ والتركيز',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            label: Text(
+              'hifz_workspace_start_btn'.tr,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             onPressed: () => controller.startHifz(),
           ),
@@ -545,7 +548,7 @@ class HifzScreen extends GetView<HifzController> {
               Expanded(
                 child: Column(
                   children: [
-                    const Text('بداية الآية', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text('ayah_start'.tr, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -579,7 +582,7 @@ class HifzScreen extends GetView<HifzController> {
               Expanded(
                 child: Column(
                   children: [
-                    const Text('نهاية الآية', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text('ayah_end'.tr, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -630,7 +633,7 @@ class HifzScreen extends GetView<HifzController> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'البداية: الآية ${controller.startAyah.value}',
+                          'ayah_start_indicator'.trParams({'ayah': '${controller.startAyah.value}'}),
                           style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -658,7 +661,7 @@ class HifzScreen extends GetView<HifzController> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'النهاية: الآية ${controller.endAyah.value}',
+                          'ayah_end_indicator'.trParams({'ayah': '${controller.endAyah.value}'}),
                           style: const TextStyle(fontSize: 10, color: AppColors.accent, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -688,7 +691,7 @@ class HifzScreen extends GetView<HifzController> {
     final completedSurahs = controller.hifzHistoryList.map((e) => e['chapterId']).toSet().length;
     final lastActiveDate = controller.hifzHistoryList.isNotEmpty
         ? _formatDate(controller.hifzHistoryList.first['date'] as String)
-        : 'لا يوجد';
+        : 'no_active_date'.tr;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -700,7 +703,7 @@ class HifzScreen extends GetView<HifzController> {
               Expanded(
                 child: _buildStatCard(
                   context,
-                  'جلسات الحفظ',
+                  'hifz_sessions_count'.tr,
                   '$totalSessions',
                   Icons.history_toggle_off_rounded,
                   AppColors.primary,
@@ -710,7 +713,7 @@ class HifzScreen extends GetView<HifzController> {
               Expanded(
                 child: _buildStatCard(
                   context,
-                  'السور المحفوظة',
+                  'saved_surahs_count'.tr,
                   '$completedSurahs',
                   Icons.library_books_rounded,
                   AppColors.accent,
@@ -721,16 +724,16 @@ class HifzScreen extends GetView<HifzController> {
           const SizedBox(height: 16),
           _buildStatCard(
             context,
-            'آخر جلسة حفظ',
+            'last_hifz_session_date'.tr,
             lastActiveDate,
             Icons.calendar_today_rounded,
             Colors.teal,
             horizontal: true,
           ),
           const SizedBox(height: 24),
-          const Text(
-            'سجل التقدم والتوثيق',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+          Text(
+            'progress_history_title'.tr,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
           if (controller.hifzHistoryList.isEmpty)
@@ -743,13 +746,13 @@ class HifzScreen extends GetView<HifzController> {
                   children: [
                     Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[500]),
                     const SizedBox(height: 16),
-                    const Text(
-                      'لا توجد جلسات حفظ مسجلة بعد',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    Text(
+                      'hifz_no_history'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'ابدأ جلسة حفظ جديدة وقم بحفظ تقدمك لتظهر إحصائياتك هنا.',
+                      'start_hifz_to_see_stats'.tr,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey[500], fontSize: 13),
                     ),
@@ -773,17 +776,19 @@ class HifzScreen extends GetView<HifzController> {
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     title: Text(
-                      'سورة ${entry['chapterName']} (الآيات ${entry['startAyah']} - ${entry['endAyah']})',
+                      Get.locale?.languageCode == 'ar' 
+                          ? 'سورة ${entry['chapterName']} (الآيات ${entry['startAyah']} - ${entry['endAyah']})'
+                          : 'Surah ${entry['chapterName']} (Ayahs ${entry['startAyah']} - ${entry['endAyah']})',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text('التاريخ: $dateStr • القارئ: ${entry['reciterName']}'),
+                        Text('session_details_subtitle'.trParams({'date': dateStr, 'reciter': '${entry['reciterName']}'})),
                         if (entry['notes'] != null && (entry['notes'] as String).isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text('ملاحظة: ${entry['notes']}', style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
+                          Text('session_notes_prefix'.trParams({'notes': '${entry['notes']}'}), style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
                         ],
                         const SizedBox(height: 6),
                         Row(
@@ -867,7 +872,7 @@ class HifzScreen extends GetView<HifzController> {
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        title: const Text('مساحة الحفظ والتركيز', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('hifz_workspace_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -907,7 +912,7 @@ class HifzScreen extends GetView<HifzController> {
                     const Icon(Icons.record_voice_over_rounded, color: Color(0xFF1A0F00)),
                     const SizedBox(width: 12),
                     Text(
-                      'صمت للتلاوة... كرر الآية الآن (المتبقي: ${audio.delayCountdown.value} ثانية)',
+                      'waiting_recitation'.trParams({'seconds': '${audio.delayCountdown.value}'}),
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A0F00), fontSize: 14),
                     ),
                   ],
@@ -922,10 +927,10 @@ class HifzScreen extends GetView<HifzController> {
                   child: () {
                     final verse = currentVerse;
                     if (verse == null) {
-                      return const Center(
+                      return Center(
                         child: Text(
-                          'جاري تهيئة مساحة الحفظ...',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          'initializing_workspace'.tr,
+                          style: const TextStyle(color: Colors.grey, fontSize: 16),
                         ),
                       );
                     }
@@ -959,7 +964,7 @@ class HifzScreen extends GetView<HifzController> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
-                                    'الآية $ayahNum',
+                                    'ayah_number_indicator'.trParams({'ayah': '$ayahNum'}),
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontSize: 14,
@@ -1052,7 +1057,7 @@ class HifzScreen extends GetView<HifzController> {
                             const Icon(Icons.repeat_one_rounded, size: 18, color: AppColors.primary),
                             const SizedBox(width: 8),
                             Text(
-                              'الآية: ${audio.verseRepeat.value} / ${controller.verseRepetitions.value}',
+                              'ayah_repetition_count'.trParams({'current': '${audio.verseRepeat.value}', 'total': '${controller.verseRepetitions.value}'}),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ],
@@ -1067,7 +1072,7 @@ class HifzScreen extends GetView<HifzController> {
                             const Icon(Icons.repeat_rounded, size: 18, color: AppColors.accent),
                             const SizedBox(width: 8),
                             Text(
-                              'النطاق: ${audio.rangeRepeat.value} / ${controller.rangeRepetitions.value}',
+                              'range_repetition_count'.trParams({'current': '${audio.rangeRepeat.value}', 'total': '${controller.rangeRepetitions.value}'}),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ],
@@ -1157,9 +1162,10 @@ class HifzScreen extends GetView<HifzController> {
                 decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'اختر السورة الكريمة',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+              const SizedBox(height: 16),
+              Text(
+                'choose_holy_surah'.tr,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1170,7 +1176,7 @@ class HifzScreen extends GetView<HifzController> {
                       c.nameSimple.toLowerCase().contains(val.toLowerCase())));
                 },
                 decoration: InputDecoration(
-                  hintText: 'ابحث باسم السورة...',
+                  hintText: 'search_by_surah_name'.tr,
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   filled: true,
                   fillColor: isDark ? AppColors.cardDark : Colors.white,
@@ -1181,7 +1187,7 @@ class HifzScreen extends GetView<HifzController> {
               Expanded(
                 child: Obx(() {
                   if (filteredChapters.isEmpty) {
-                    return const Center(child: Text('لا توجد نتائج بحث'));
+                    return Center(child: Text('no_search_results'.tr));
                   }
                   return ListView.builder(
                     itemCount: filteredChapters.length,
@@ -1192,8 +1198,11 @@ class HifzScreen extends GetView<HifzController> {
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           child: Text('${chapter.id}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text('سورة ${chapter.nameSimple} (${chapter.nameArabic})'),
-                        subtitle: Text('عدد الآيات: ${chapter.versesCount} • نزولها: ${chapter.revelationPlace == 'Meccan' ? 'مكي' : 'مدني'}'),
+                        title: Text('surah_info_format'.trParams({'nameSimple': chapter.nameSimple, 'nameArabic': chapter.nameArabic})),
+                        subtitle: Text('surah_details_format'.trParams({
+                          'versesCount': '${chapter.versesCount}',
+                          'revelationType': chapter.revelationPlace == 'Meccan' ? 'revelation_meccan'.tr : 'revelation_medinan'.tr
+                        })),
                         onTap: () {
                           controller.onSurahChanged(chapter);
                           Navigator.pop(context);
@@ -1228,13 +1237,13 @@ class HifzScreen extends GetView<HifzController> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'تعديل حجم الخط',
+                Text(
+                  'adjust_font_size'.tr,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
                 const SizedBox(height: 24),
-                Text('حجم الخط العربي: ${controller.arabicFontSize.value.toInt()}'),
+                Text('arabic_font_size_param'.trParams({'size': '${controller.arabicFontSize.value.toInt()}'})),
                 Slider(
                   min: 20.0,
                   max: 48.0,
@@ -1245,7 +1254,7 @@ class HifzScreen extends GetView<HifzController> {
                   },
                 ),
                 const SizedBox(height: 16),
-                Text('حجم خط الترجمة: ${controller.translationFontSize.value.toInt()}'),
+                Text('translation_font_size_param'.trParams({'size': '${controller.translationFontSize.value.toInt()}'})),
                 Slider(
                   min: 12.0,
                   max: 28.0,
@@ -1277,16 +1286,16 @@ class HifzScreen extends GetView<HifzController> {
             return AlertDialog(
               backgroundColor: isDark ? AppColors.cardDark : Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text(
-                'حفظ تقدم الحفظ الكريّم',
+              title: Text(
+                'save_hifz_progress'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('كيف تقيّم جودة حفظك وتسميعك في هذه الجلسة؟', textAlign: TextAlign.center),
+                    Text('how_would_you_rate'.tr, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1310,7 +1319,7 @@ class HifzScreen extends GetView<HifzController> {
                       controller: notesController,
                       maxLines: 2,
                       decoration: InputDecoration(
-                        labelText: 'ملاحظات وتنبيهات الحفظ (اختياري)',
+                        labelText: 'hifz_notes_optional'.tr,
                         labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                         focusedBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: AppColors.primary),
@@ -1326,7 +1335,7 @@ class HifzScreen extends GetView<HifzController> {
               ),
               actions: [
                 TextButton(
-                  child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+                  child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
                   onPressed: () => Navigator.pop(context),
                 ),
                 ElevatedButton(
@@ -1334,7 +1343,7 @@ class HifzScreen extends GetView<HifzController> {
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  child: const Text('حفظ وإغلاق', style: TextStyle(color: Colors.white)),
+                  child: Text('save_and_close'.tr, style: const TextStyle(color: Colors.white)),
                   onPressed: () {
                     controller.finishAndSaveSession(selectedRating, notesController.text);
                     Navigator.pop(context);

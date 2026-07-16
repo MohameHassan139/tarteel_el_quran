@@ -110,7 +110,7 @@ class AudioHubController extends GetxController {
       // API and cache both failed — still try to show any downloaded surahs
       filterChapters();
       if (filteredChapters.isEmpty) {
-        errorMessage.value = 'لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة.';
+        errorMessage.value = 'no_connection_no_data'.tr;
       }
     } finally {
       isLoading.value = false;
@@ -190,22 +190,25 @@ class AudioHubController extends GetxController {
 
     final isDownloaded = isChapterDownloaded(chapter);
 
+    final isArLocale = Get.locale?.languageCode == 'ar';
+    final chapterName = isArLocale ? chapter.nameArabic : chapter.nameSimple;
+
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
         AlertDialog(
           backgroundColor: AppColors.getCard(Get.isDarkMode),
-          title: Text('حذف الصوت', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
+          title: Text('delete_audio'.tr, style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
           content: Text(
-            'هل أنت متأكد من حذف الملف الصوتي لسورة ${chapter.nameSimple}؟',
+            'delete_audio_confirm_mp3'.trParams({'surah': chapterName}),
             style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
           ),
           actions: [
             TextButton(
-              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+              child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
               onPressed: () => Get.back(result: false),
             ),
             TextButton(
-              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              child: Text('delete'.tr, style: const TextStyle(color: Colors.red)),
               onPressed: () => Get.back(result: true),
             ),
           ],
@@ -216,8 +219,8 @@ class AudioHubController extends GetxController {
         await _download.deleteMp3QuranChapter(reciter.id, moshaf.id, chapter.id);
         filteredChapters.refresh();
         Get.snackbar(
-          'حذف الصوت',
-          'تم حذف الملف الصوتي لسورة ${chapter.nameSimple}',
+          'delete_audio'.tr,
+          'audio_deleted'.trParams({'surah': chapterName}),
           backgroundColor: Colors.grey[800],
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
@@ -231,8 +234,8 @@ class AudioHubController extends GetxController {
         filteredChapters.refresh();
       } catch (e) {
         Get.snackbar(
-          'فشل التحميل',
-          'فشل التحميل: ${e.toString()}',
+          'download_failed'.tr,
+          'download_failed_desc'.trParams({'error': '${e.toString()}'}),
           backgroundColor: Colors.red[800],
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
@@ -251,8 +254,8 @@ class AudioHubController extends GetxController {
     }
 
     Get.snackbar(
-      'تحميل جماعي',
-      'بدء تحميل كافة السور لهذا القارئ في الخلفية...',
+      'bulk_download_title'.tr,
+      'bulk_download_started'.tr,
       duration: const Duration(seconds: 3),
       snackPosition: SnackPosition.BOTTOM,
     );
@@ -281,8 +284,8 @@ class AudioHubController extends GetxController {
       isBulkDownloading.value = false;
       bulkDownloadId.value = 0;
       Get.snackbar(
-        'تحميل جماعي',
-        'اكتمل تحميل جميع سور القارئ المختار! 🎉',
+        'bulk_download_title'.tr,
+        'bulk_download_completed'.tr,
         backgroundColor: AppColors.primary,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -294,8 +297,8 @@ class AudioHubController extends GetxController {
     isBulkDownloading.value = false;
     bulkDownloadId.value = 0;
     Get.snackbar(
-      'تحميل جماعي',
-      'تم إيقاف عملية التحميل الجماعي.',
+      'bulk_download_title'.tr,
+      'bulk_download_cancelled'.tr,
       backgroundColor: Colors.orange,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
@@ -306,18 +309,18 @@ class AudioHubController extends GetxController {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
         backgroundColor: AppColors.getCard(Get.isDarkMode),
-        title: Text('حذف جميع التلاوات', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
+        title: Text('delete_all_title'.tr, style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
         content: Text(
-          'هل أنت متأكد من حذف كافة الملفات الصوتية المخزنة لهذا القارئ؟',
+          'delete_all_confirm'.tr,
           style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
         ),
         actions: [
           TextButton(
-            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+            child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
             onPressed: () => Get.back(result: false),
           ),
           TextButton(
-            child: const Text('حذف الكل', style: TextStyle(color: Colors.red)),
+            child: Text('delete_all'.tr, style: const TextStyle(color: Colors.red)),
             onPressed: () => Get.back(result: true),
           ),
         ],
@@ -340,8 +343,8 @@ class AudioHubController extends GetxController {
       isLoading.value = false;
       filteredChapters.refresh();
       Get.snackbar(
-        'إفراغ التلاوات',
-        'تم إفراغ التلاوات المخزنة بالكامل.',
+        'clear_recitations_title'.tr,
+        'clear_recitations_success'.tr,
         backgroundColor: Colors.grey,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -373,7 +376,7 @@ class AudioHubController extends GetxController {
     }
 
     final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
-    final isAr = _storage.getAppLanguage() == 'ar';
+    final isAr = Get.locale?.languageCode == 'ar';
     final displayName = isAr
         ? (quranLibrarySurah?.name ?? chapter.nameArabic)
         : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
@@ -382,7 +385,7 @@ class AudioHubController extends GetxController {
       id: 'audio_hub_${reciter.id}_${moshaf.id}_${chapter.id}',
       title: displayName,
       artist: reciter.name,
-      album: isAr ? 'مكتبة التلاوات' : 'Audio Hub Library',
+      album: 'recitations_library'.tr,
     );
 
     try {
@@ -395,8 +398,8 @@ class AudioHubController extends GetxController {
       );
     } catch (e) {
       Get.snackbar(
-        'خطأ في تشغيل الصوت',
-        'فشل تشغيل سورة ${chapter.nameSimple}. سيتم الانتقال تلقائيًا للسورة التالية...',
+        'audio_play_error'.tr,
+        'audio_play_failed_skip'.trParams({'surah': isAr ? chapter.nameArabic : chapter.nameSimple}),
         backgroundColor: Colors.orange[900],
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,

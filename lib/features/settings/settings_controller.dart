@@ -44,8 +44,8 @@ class SettingsController extends GetxController {
       selectedStyle.value = 'murattal';
     }
     Get.snackbar(
-      'القارئ المفضل',
-      'تم تحديث القارئ المفضل بنجاح',
+      'favorite_reciter'.tr,
+      'favorite_reciter_updated'.tr,
       backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
@@ -57,13 +57,13 @@ class SettingsController extends GetxController {
     selectedStyle.value = style;
 
     String styleAr = '';
-    if (style == 'murattal') styleAr = 'مرتّل';
-    if (style == 'mujawwad') styleAr = 'مجوّد';
-    if (style == 'teacher') styleAr = 'معلّم (تعليمي)';
+    if (style == 'murattal') styleAr = 'murattal'.tr;
+    if (style == 'mujawwad') styleAr = 'mujawwad'.tr;
+    if (style == 'teacher') styleAr = 'teacher'.tr;
 
     Get.snackbar(
-      'نمط التلاوة',
-      'تم اختيار رواية/نمط التلاوة: $styleAr',
+      'reciter_style'.tr,
+      'recitation_style_selected'.trParams({'style': styleAr}),
       backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
@@ -80,6 +80,7 @@ class SettingsController extends GetxController {
     await _storage.setAppLanguage(value);
     appLanguage.value = value;
     Get.updateLocale(Locale(value));
+    await _reminder.rescheduleAllReminders();
   }
 
   Future<void> toggleKeepScreenOn(bool value) async {
@@ -90,8 +91,8 @@ class SettingsController extends GetxController {
   Future<void> triggerTestNotification() async {
     await _reminder.triggerInstantTestNotification();
     Get.snackbar(
-      'إشعار تجريبي',
-      'تم إرسال تنبيه تجريبي! تحقق من لوحة الإشعارات.',
+      'test_notification_title'.tr,
+      'test_notification_sent'.tr,
       backgroundColor: AppColors.primary,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,

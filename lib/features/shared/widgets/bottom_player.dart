@@ -17,6 +17,7 @@ class BottomPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final audio = Get.find<AudioService>();
+    final isArLocale = Get.locale?.languageCode == 'ar';
 
     return Obx(() {
       final chapter = audio.activeChapter.value;
@@ -44,7 +45,7 @@ class BottomPlayer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'سورة ${chapter.nameSimple}',
+                            isArLocale ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
                             style: TextStyle(
                               color: Get.isDarkMode ? Colors.white : Colors.black87,
                               fontWeight: FontWeight.bold,
@@ -53,7 +54,7 @@ class BottomPlayer extends StatelessWidget {
                           ),
                           Obx(() {
                             final verseKey = audio.activeVerseKey.value;
-                            final text = verseKey != null ? 'الآية $verseKey' : 'جاري التحميل...';
+                            final text = verseKey != null ? 'ayah_label'.trParams({'key': verseKey}) : 'loading'.tr;
                             return Text(
                               text,
                               style: TextStyle(
@@ -116,6 +117,7 @@ class BottomPlayer extends StatelessWidget {
 
   void _showExpandedPlayer(BuildContext context, Chapter chapter) {
     final audio = Get.find<AudioService>();
+    final isArLocale = Get.locale?.languageCode == 'ar';
 
     showModalBottomSheet(
       context: context,
@@ -151,7 +153,7 @@ class BottomPlayer extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'سورة ${chapter.nameSimple}',
+                isArLocale ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
                 style: TextStyle(
                   color: Get.isDarkMode ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.bold,
@@ -176,8 +178,8 @@ class BottomPlayer extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    verseKey != null ? 'تلاوة الآية: $verseKey' : 'جاري التحميل والتزامن...',
-                    style: TextStyle(
+                    verseKey != null ? 'reciting_ayah'.trParams({'key': verseKey}) : 'loading_sync'.tr,
+                    style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                       fontSize: 15,

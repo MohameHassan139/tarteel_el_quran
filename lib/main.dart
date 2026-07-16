@@ -12,6 +12,8 @@ import 'core/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'routes/app_pages.dart';
 
+import 'core/localization/app_translations.dart';
+
 Future<void> initServices() async {
   await Get.putAsync(() => StorageService().init());
   await Get.putAsync(() => ReminderService().init());
@@ -44,9 +46,10 @@ class MyApp extends StatelessWidget {
     final appLanguage = storage.getAppLanguage();
 
     return GetMaterialApp(
-      title: 'ترتيل القرآن',
+      title: 'app_title'.tr,
       debugShowCheckedModeBanner: false,
 
+      translations: AppTranslations(),
       locale: Locale(appLanguage),
       fallbackLocale: const Locale('ar'),
       supportedLocales: const [

@@ -230,19 +230,22 @@ class HifzController extends GetxController {
     if (chapter == null) return;
     
     final reciterId = _storage.getEffectiveReciterId();
+    final isAr = Get.locale?.languageCode == 'ar';
+    final chapterName = isAr ? chapter.nameArabic : chapter.nameSimple;
+
     if (_storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount)) {
       Get.dialog(
         AlertDialog(
           backgroundColor: Get.isDarkMode ? AppColors.cardDark : Colors.white,
-          title: const Text('حذف السورة المحملة', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right),
-          content: Text('هل تريد حذف الملفات الصوتية المحملة لسورة ${chapter.nameArabic}؟', textAlign: TextAlign.right),
+          title: Text('delete_downloaded_surah'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: Text('delete_downloaded_surah_confirm'.trParams({'surah': chapterName})),
           actions: [
             TextButton(
-              child: const Text('إلغاء'),
+              child: Text('cancel'.tr),
               onPressed: () => Get.back(),
             ),
             TextButton(
-              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              child: Text('delete'.tr, style: const TextStyle(color: Colors.red)),
               onPressed: () async {
                 await _downloadService.deleteChapter(reciterId, chapter.id);
                 Get.back();
@@ -261,7 +264,7 @@ class HifzController extends GetxController {
     try {
       final urls = await _api.fetchChapterAudio(reciterId, chapter.id);
       if (urls.isEmpty) {
-        throw Exception('الروابط غير متوفرة لهذه السورة.');
+        throw Exception('audio_links_offline'.tr);
       }
       
       final taskKey = '${reciterId}_${chapter.id}';
@@ -274,9 +277,9 @@ class HifzController extends GetxController {
       await _downloadService.downloadChapter(reciterId, chapter.id, urls);
       sub.cancel();
       update();
-      Get.snackbar('تحميل السورة', 'تم تحميل سورة ${chapter.nameArabic} بنجاح!', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('download_surah'.tr, 'download_surah_success'.trParams({'surah': chapterName}), snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
-      Get.snackbar('فشل التحميل', '${e.toString()}', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('download_failed'.tr, '${e.toString()}', snackPosition: SnackPosition.BOTTOM);
     } finally {
       isDownloadingSurah.value = false;
       downloadProgress.value = 0.0;
@@ -291,7 +294,7 @@ class HifzController extends GetxController {
     final int end = endAyah.value;
 
     if (start < 1 || end > chapter.versesCount || start > end) {
-      Get.snackbar('خطأ النطاق', 'نطاق الآيات غير صالح.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('invalid_range'.tr, 'invalid_range_desc'.tr, snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -350,7 +353,7 @@ class HifzController extends GetxController {
       }
 
       if (audioPathsOrUrls.isEmpty) {
-        throw Exception('الروابط غير متوفرة لهذه السورة.');
+        throw Exception('audio_links_offline'.tr);
       }
 
       final config = HifzLoopConfig(
@@ -365,7 +368,7 @@ class HifzController extends GetxController {
       await _audio.playHifz(chapter, audioPathsOrUrls, config);
     } catch (e) {
       WakelockPlus.disable();
-      Get.snackbar('خطأ مساحة الحفظ', 'فشل بدء مساحة الحفظ: ${e.toString()}', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('hifz_workspace_error'.tr, 'hifz_workspace_error_desc'.trParams({'error': '${e.toString()}'}), snackPosition: SnackPosition.BOTTOM);
       isHifzActive.value = false;
       isLoading.value = false;
     }
@@ -439,26 +442,12 @@ class HifzController extends GetxController {
   }
 
   String getReciterName(int id) {
-    switch (id) {
-      case 7: return 'مشاري العفاسي';
-      case 6: return 'محمود الحصري';
-      case 2: return 'عبد الباسط عبد الصمد';
-      case 9: return 'محمد صديق المنشاوي';
-      case 10: return 'أيمن سويد (معلّم)';
-      case 3: return 'عبد الرحمن السديس';
-      case 17: return 'ماهر المعيقلي';
-      case 15: return 'علي الحذيفي';
-      case 20: return 'سعود الشريم';
-      case 22: return 'أبو بكر الشاطري';
-      case 23: return 'أحمد العجمي';
-      case 11: return 'عبد الله بصفر';
-      case 14: return 'هاني الرفاعي';
-      case 16: return 'إبراهيم الأخضر';
-      case 18: return 'محمد أيوب';
-      case 19: return 'محمد جبريل';
-      case 21: return 'شهريار پرهيزگار';
-      default: return 'مشاري العفاسي';
+    final translationKey = 'reciter_$id';
+    final translated = translationKey.tr;
+    if (translated == translationKey) {
+      return 'reciter_unknown'.tr;
     }
+    return translated;
   }
 
   AudioService get audioService => _audio;

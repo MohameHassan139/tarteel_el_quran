@@ -134,13 +134,13 @@ class MushafViewController extends GetxController {
     }
 
     if (audioPathsOrUrls.isEmpty) {
-      Get.snackbar('الصوت', 'الروابط غير متوفرة. يرجى التأكد من الاتصال بالإنترنت.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('audio'.tr, 'audio_links_offline'.tr, snackPosition: SnackPosition.BOTTOM);
       return;
     }
     try {
       await audio.playSurah(chapter, audioPathsOrUrls);
     } catch (e) {
-      Get.snackbar('فشل تشغيل الصوت', '$e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('audio_play_failed'.tr, '$e', snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -167,14 +167,12 @@ class MushafViewController extends GetxController {
 
   String getReciterName() {
     final id = storage.getSelectedReciterId();
-    const names = {
-      7: 'مشاري العفاسي',
-      6: 'محمود الحصري',
-      2: 'عبد الباسط عبد الصمد',
-      9: 'المنشاوي',
-      1: 'عبدالله المطرود',
-    };
-    return names[id] ?? 'قارئ مختار';
+    final translationKey = 'reciter_$id';
+    final translated = translationKey.tr;
+    if (translated == translationKey) {
+      return 'reciter_unknown'.tr;
+    }
+    return translated;
   }
 
   @override

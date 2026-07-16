@@ -14,7 +14,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مكتبة الاستماع والتحميل', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('listening_library_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -56,9 +56,9 @@ class AudioHubScreen extends GetView<AudioHubController> {
                           // Line 1: Reciter dropdown
                           Row(
                             children: [
-                              const Text(
-                                'القارئ:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              Text(
+                                'reciter_label'.tr,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -99,9 +99,9 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Text(
-                                  'الرواية:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                Text(
+                                  'narration_label'.tr,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -153,13 +153,13 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                           height: 16,
                                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                         ),
-                                        label: Text('إيقاف ($progressStr)'),
+                                        label: Text('stop_bulk_download'.trParams({'progress': progressStr})),
                                         onPressed: () => controller.cancelBulkDownload(),
                                       )
                                     : ElevatedButton.icon(
                                         style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                                         icon: const Icon(Icons.download, color: Colors.white),
-                                        label: const Text('تحميل الكل', style: TextStyle(color: Colors.white)),
+                                        label: Text('download_all'.tr, style: const TextStyle(color: Colors.white)),
                                         onPressed: controller.chapters.isEmpty ? null : () => controller.startBulkDownload(),
                                       ),
                               ),
@@ -167,7 +167,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red[900]),
                                 icon: const Icon(Icons.delete_sweep, color: Colors.white),
-                                label: const Text('حذف الكل', style: TextStyle(color: Colors.white)),
+                                label: Text('delete_all'.tr, style: const TextStyle(color: Colors.white)),
                                 onPressed: controller.chapters.isEmpty || isBulk ? null : () => controller.deleteAllAudio(),
                               ),
                             ],
@@ -185,7 +185,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                 child: TextField(
                   controller: controller.searchController,
                   decoration: InputDecoration(
-                    hintText: 'ابحث عن السورة للاستماع إليها...',
+                    hintText: 'search_surah_listen'.tr,
                     prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                     filled: true,
                     fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
@@ -227,8 +227,8 @@ class AudioHubScreen extends GetView<AudioHubController> {
                               style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary),
                               onPressed: () => controller.loadMp3QuranData(),
-                              child: const Text('إعادة المحاولة',
-                                  style: TextStyle(color: Colors.white)),
+                              child: Text('retry'.tr,
+                                  style: const TextStyle(color: Colors.white)),
                             ),
                           ],
                         ),
@@ -250,17 +250,17 @@ class AudioHubScreen extends GetView<AudioHubController> {
                               const Icon(Icons.wifi_off,
                                   color: Colors.white, size: 16),
                               const SizedBox(width: 8),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'أنت غير متصل — تعرض السور المحملة فقط',
-                                  style: TextStyle(
+                                  'offline_banner'.tr,
+                                  style: const TextStyle(
                                       color: Colors.white, fontSize: 13),
                                 ),
                               ),
                               TextButton(
                                 onPressed: () => controller.loadMp3QuranData(),
-                                child: const Text('إعادة المحاولة',
-                                    style: TextStyle(
+                                child: Text('retry'.tr,
+                                    style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold)),
                               ),
@@ -305,8 +305,8 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
 
                         final displaySubtitle = isAr
-                            ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'مكية' : 'مدنية'} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} آية"
-                            : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} verses";
+                            ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'meccan'.tr : 'medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
+                            : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
 
                         return ListTile(
                           leading: Container(
@@ -354,7 +354,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      isAr ? 'غير متوفر' : 'Unavailable',
+                                      'unavailable'.tr,
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 11,
@@ -402,14 +402,14 @@ class AudioHubScreen extends GetView<AudioHubController> {
                         );
                       });
                     },
-                        ),  // ListView.separated
-                      ),  // Expanded
-                    ],
-                  );  // Column
-                }),
-              ),
-            ],
-          ),
+                  ), // ListView.separated
+                ), // Expanded
+              ],
+            ); // Column
+          }),
+        ),
+      ],
+    ),
 
           // Persistent bottom player overlay
           const Align(

@@ -16,12 +16,12 @@ class MushafScreen extends GetView<MushafController> {
     final downloadService = Get.find<DownloadService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final isAr = storage.getAppLanguage() == 'ar';
+    final isAr = Get.locale?.languageCode == 'ar';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isAr ? 'المصحف الشريف' : 'Holy Quran',
+          'holy_quran'.tr,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
         backgroundColor: Colors.transparent,
@@ -35,7 +35,7 @@ class MushafScreen extends GetView<MushafController> {
             child: TextField(
               controller: controller.searchController,
               decoration: InputDecoration(
-                hintText: isAr ? 'ابحث عن السورة...' : 'Search Surah...',
+                hintText: 'search_surah'.tr,
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                 filled: true,
                 fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
@@ -81,7 +81,7 @@ class MushafScreen extends GetView<MushafController> {
                             ),
                           ),
                           onPressed: () => controller.loadChapters(),
-                          child: const Text('إعادة المحاولة', style: TextStyle(color: Colors.white)),
+                          child: Text('retry'.tr, style: const TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
@@ -107,8 +107,8 @@ class MushafScreen extends GetView<MushafController> {
                       : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
 
                   final displaySubtitle = isAr
-                      ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'مكية' : 'مدنية'} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} آية"
-                      : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} verses";
+                      ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'meccan'.tr : 'medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
+                      : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
 
                   return ListTile(
                     onTap: () {

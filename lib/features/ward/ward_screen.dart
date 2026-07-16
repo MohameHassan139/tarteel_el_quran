@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'ward_controller.dart';
+import 'customize_messages_screen.dart';
 import '../../core/app_colors.dart';
 
 class WardScreen extends GetView<WardController> {
@@ -29,8 +30,8 @@ class WardScreen extends GetView<WardController> {
     if (picked != null) {
       await controller.setReminderTime(picked.hour, picked.minute);
       Get.snackbar(
-        'تنبيه الورد',
-        'تم جدولة المنبه اليومي في تمام الساعة ${picked.format(context)}',
+        'ward_reminder'.tr,
+        'ward_reminder_scheduled'.trParams({'time': picked.format(context)}),
         backgroundColor: AppColors.primary,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -50,7 +51,7 @@ class WardScreen extends GetView<WardController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الورد والمتابعة', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('ward_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -76,9 +77,9 @@ class WardScreen extends GetView<WardController> {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      const Text(
-                        "معدل تقدم اليوم",
-                        style: TextStyle(
+                      Text(
+                        'daily_progress_rate'.tr,
+                        style: const TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -113,7 +114,7 @@ class WardScreen extends GetView<WardController> {
                                 ),
                               ),
                               Text(
-                                'من أصل ${goal.targetMinutes} دقيقة',
+                                'minutes_of_target_total'.trParams({'target': '${goal.targetMinutes}'}),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey,
@@ -127,8 +128,8 @@ class WardScreen extends GetView<WardController> {
                       
                       Text(
                         remainingMinutes <= 0
-                            ? "أحسنت! تم إنجاز الورد اليومي بنجاح 🎉"
-                            : "متبقي $remainingMinutes دقيقة لإنجاز الورد اليومي.",
+                            ? 'daily_ward_completed_history'.tr
+                            : 'daily_ward_remaining_history'.trParams({'minutes': '$remainingMinutes'}),
                         style: TextStyle(
                           color: remainingMinutes <= 0 ? AppColors.primary : (isDark ? Colors.white70 : Colors.black54),
                           fontWeight: FontWeight.bold,
@@ -137,9 +138,9 @@ class WardScreen extends GetView<WardController> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        "ملاحظة: يقوم التطبيق بحساب وقت القراءة أوتوماتيكياً عند تصفح المصحف.",
-                        style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+                      Text(
+                        'ward_setting_note'.tr,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -149,9 +150,9 @@ class WardScreen extends GetView<WardController> {
               const SizedBox(height: 24),
 
               // Goal & Notification Configuration
-              const Text(
-                'إعدادات الورد والمنبه',
-                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+              Text(
+                'ward_reminder_settings'.tr,
+                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
               ),
               const SizedBox(height: 12),
               Card(
@@ -159,13 +160,16 @@ class WardScreen extends GetView<WardController> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
-                    ListTile(
-                      title: const Text('المدة اليومية المستهدفة'),
+                     ListTile(
+                      title: Text('target_daily_duration'.tr),
                       trailing: DropdownButton<int>(
                         value: goal.targetMinutes,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
                         items: [10, 15, 20, 30, 45, 60].map((e) {
-                          return DropdownMenuItem(value: e, child: Text('$e دقيقة'));
+                          return DropdownMenuItem(
+                            value: e,
+                            child: Text('minutes_param'.trParams({'minutes': '$e'})),
+                          );
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) controller.updateTargetMinutes(val);
@@ -174,8 +178,8 @@ class WardScreen extends GetView<WardController> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      title: const Text('وقت التنبيه اليومي'),
-                      subtitle: const Text('تذكير في حال عدم إكمال الورد'),
+                      title: Text('daily_reminder_time'.tr),
+                      subtitle: Text('reminder_time_desc'.tr),
                       trailing: ActionChip(
                         backgroundColor: AppColors.primary.withOpacity(0.15),
                         side: const BorderSide(color: AppColors.primary),
@@ -186,15 +190,22 @@ class WardScreen extends GetView<WardController> {
                         onPressed: () => _pickTime(context),
                       ),
                     ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      title: Text('customize_reminder_messages'.tr),
+                      subtitle: Text('customize_reminder_messages_desc'.tr),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
+                      onTap: () => Get.to(() => const CustomizeMessagesScreen()),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
               // Reading History
-              const Text(
-                'سجل القراءة السابق',
-                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+              Text(
+                'previous_reading_history'.tr,
+                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
               ),
               const SizedBox(height: 12),
               Obx(() {
@@ -202,11 +213,11 @@ class WardScreen extends GetView<WardController> {
                   return Card(
                     color: isDark ? AppColors.cardDark : AppColors.cardLight,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: const Padding(
-                      padding: EdgeInsets.all(20.0),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
                       child: Text(
-                        'لا توجد سجلات سابقة بعد. أكمل ورد اليوم لبدء تسجيل تقدمك التاريخي!',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                        'no_history_yet'.tr,
+                        style: const TextStyle(color: Colors.grey, fontSize: 14),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -225,7 +236,7 @@ class WardScreen extends GetView<WardController> {
                           leading: const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                           title: Text(entry.key),
                           trailing: Text(
-                            '$readMins دقيقة',
+                            'minutes_param'.trParams({'minutes': readMins}),
                             style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                           ),
                         );

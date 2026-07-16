@@ -251,3 +251,49 @@ class Mp3QuranReciter {
     };
   }
 }
+
+class ReminderMessage {
+  final String id;
+  final String category; // 'start', 'incomplete', 'completed'
+  final String textAr;
+  final String textEn;
+
+  ReminderMessage({
+    required this.id,
+    required this.category,
+    required this.textAr,
+    required this.textEn,
+  });
+
+  factory ReminderMessage.fromJson(Map<String, dynamic> json) {
+    return ReminderMessage(
+      id: json['id'] as String? ?? '',
+      category: json['category'] as String? ?? 'start',
+      textAr: json['textAr'] as String? ?? '',
+      textEn: json['textEn'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'category': category,
+      'textAr': textAr,
+      'textEn': textEn,
+    };
+  }
+
+  ReminderMessage copyWith({
+    String? id,
+    String? category,
+    String? textAr,
+    String? textEn,
+  }) {
+    return ReminderMessage(
+      id: id ?? this.id,
+      category: category ?? this.category,
+      textAr: textAr ?? this.textAr,
+      textEn: textEn ?? this.textEn,
+    );
+  }
+}

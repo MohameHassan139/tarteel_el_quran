@@ -38,7 +38,9 @@ class MushafController extends GetxController {
     } on ApiException catch (e) {
       errorMessage.value = e.message;
     } catch (e) {
-      errorMessage.value = 'فشل الاتصال بالخادم وتحميل السور: ${e.toString()}';
+      errorMessage.value = Get.locale?.languageCode == 'ar'
+          ? 'فشل الاتصال بالخادم وتحميل السور: ${e.toString()}'
+          : 'Failed to connect to server and load Surahs: ${e.toString()}';
     } finally {
       isLoading.value = false;
     }
@@ -101,23 +103,25 @@ class MushafController extends GetxController {
   Future<void> handleDownload(Chapter chapter) async {
     final reciterId = _storage.getSelectedReciterId();
     final isDownloaded = isChapterDownloaded(chapter);
+    final isAr = Get.locale?.languageCode == 'ar';
+    final chapterName = isAr ? chapter.nameArabic : chapter.nameSimple;
 
     if (isDownloaded) {
       final confirm = await Get.dialog<bool>(
         AlertDialog(
           backgroundColor: AppColors.getCard(Get.isDarkMode),
-          title: Text('حذف الصوت', style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
+          title: Text('delete_audio'.tr, style: TextStyle(color: Get.isDarkMode ? Colors.white : Colors.black87)),
           content: Text(
-            'هل أنت متأكد من حذف الملف الصوتي الخاص بسورة ${chapter.nameSimple} من الهاتف؟',
+            'delete_audio_confirm'.trParams({'surah': chapterName}),
             style: TextStyle(color: Get.isDarkMode ? Colors.grey : Colors.black54),
           ),
           actions: [
             TextButton(
-              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+              child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
               onPressed: () => Get.back(result: false),
             ),
             TextButton(
-              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              child: Text('delete'.tr, style: const TextStyle(color: Colors.red)),
               onPressed: () => Get.back(result: true),
             ),
           ],
@@ -128,8 +132,8 @@ class MushafController extends GetxController {
         await _download.deleteChapter(reciterId, chapter.id);
         filteredChapters.refresh(); // Trigger updates
         Get.snackbar(
-          'حذف الصوت',
-          'تم حذف الملف الصوتي لسورة ${chapter.nameSimple}',
+          'delete_audio'.tr,
+          'audio_deleted'.trParams({'surah': chapterName}),
           backgroundColor: Colors.grey[800],
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
@@ -137,8 +141,8 @@ class MushafController extends GetxController {
       }
     } else {
       Get.snackbar(
-        'تحميل التلاوة',
-        'جاري بدء تحميل سورة ${chapter.nameSimple}...',
+        'download_recitation'.tr,
+        'downloading_recitation_started'.trParams({'surah': chapterName}),
         duration: const Duration(seconds: 2),
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -146,22 +150,22 @@ class MushafController extends GetxController {
       try {
         final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
         if (audioUrls.isEmpty) {
-          throw Exception('عذراً، لم نتمكن من الحصول على رابط التحميل.');
+          throw Exception('audio_links_unavailable'.tr);
         }
 
         await _download.downloadChapter(reciterId, chapter.id, audioUrls);
         filteredChapters.refresh();
         Get.snackbar(
-          'نجاح التحميل',
-          'تم تحميل سورة ${chapter.nameSimple} بنجاح!',
+          'download_success'.tr,
+          'download_success_desc'.trParams({'surah': chapterName}),
           backgroundColor: AppColors.primary,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
         );
       } catch (e) {
         Get.snackbar(
-          'فشل التحميل',
-          'فشل التحميل: ${e.toString()}',
+          'download_failed'.tr,
+          'download_failed_desc'.trParams({'error': '${e.toString()}'}),
           backgroundColor: Colors.red[800],
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,

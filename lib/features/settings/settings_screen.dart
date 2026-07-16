@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:quran_library/quran_library.dart';
 import 'settings_controller.dart';
 import '../../core/app_colors.dart';
 
@@ -11,7 +10,7 @@ class SettingsScreen extends GetView<SettingsController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الإعدادات العامة', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('settings_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -26,32 +25,7 @@ class SettingsScreen extends GetView<SettingsController> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Quran Fonts Download Card
-              Card(
-                color: isDark ? AppColors.cardDark : AppColors.cardLight,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: ListTile(
-                  leading: const Icon(Icons.font_download_outlined, color: AppColors.primary),
-                  title: const Text('خطوط المصحف الحقيقية', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('تحميل خطوط المصحف الشريف للعرض الأصيل'),
-                  trailing: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    ),
-                    onPressed: () {
-                      QuranLibrary().getFontsDownloadDialog(
-                        null,
-                        lang,
-                      );
-                    },
-                    child: const Text('تحميل', style: TextStyle(fontSize: 13)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+
               // Settings Card
               Card(
                 color: isDark ? AppColors.cardDark : AppColors.cardLight,
@@ -60,8 +34,8 @@ class SettingsScreen extends GetView<SettingsController> {
                   children: [
                     // Reciter Selector
                     ListTile(
-                      title: const Text('القارئ المختار'),
-                      subtitle: const Text('مصدر تلاوة الصوتيات (أونلاين/أوفلاين)'),
+                      title: Text('selected_reciter'.tr),
+                      subtitle: Text('reciter_desc'.tr),
                       trailing: DropdownButton<int>(
                         value: reciterId,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
@@ -70,24 +44,24 @@ class SettingsScreen extends GetView<SettingsController> {
                           fontSize: 16,
                           fontFamily: 'system-ui',
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 7, child: Text('مشاري العفاسي')),
-                          DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
-                          DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
-                          DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
-                          DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
-                          DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
-                          DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
-                          DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
-                          DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
-                          DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
-                          DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
-                          DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
-                          DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
-                          DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
-                          DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
-                          DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
-                          DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
+                        items: [
+                          DropdownMenuItem(value: 7, child: Text('reciter_7'.tr)),
+                          DropdownMenuItem(value: 6, child: Text('reciter_6'.tr)),
+                          DropdownMenuItem(value: 2, child: Text('reciter_2'.tr)),
+                          DropdownMenuItem(value: 9, child: Text('reciter_9'.tr)),
+                          DropdownMenuItem(value: 10, child: Text('reciter_10'.tr)),
+                          DropdownMenuItem(value: 3, child: Text('reciter_3'.tr)),
+                          DropdownMenuItem(value: 17, child: Text('reciter_17'.tr)),
+                          DropdownMenuItem(value: 15, child: Text('reciter_15'.tr)),
+                          DropdownMenuItem(value: 20, child: Text('reciter_20'.tr)),
+                          DropdownMenuItem(value: 22, child: Text('reciter_22'.tr)),
+                          DropdownMenuItem(value: 23, child: Text('reciter_23'.tr)),
+                          DropdownMenuItem(value: 11, child: Text('reciter_11'.tr)),
+                          DropdownMenuItem(value: 14, child: Text('reciter_14'.tr)),
+                          DropdownMenuItem(value: 16, child: Text('reciter_16'.tr)),
+                          DropdownMenuItem(value: 18, child: Text('reciter_18'.tr)),
+                          DropdownMenuItem(value: 19, child: Text('reciter_19'.tr)),
+                          DropdownMenuItem(value: 21, child: Text('reciter_21'.tr)),
                         ],
                         onChanged: (val) {
                           if (val != null) controller.updateReciter(val);
@@ -98,10 +72,10 @@ class SettingsScreen extends GetView<SettingsController> {
 
                     if (reciterId == 6 || reciterId == 2 || reciterId == 9) ...[
                       ListTile(
-                        title: const Text('أسلوب التلاوة / Way of Recitation'),
+                        title: Text('reciter_style'.tr),
                         subtitle: Text(reciterId == 6
-                            ? 'اختر بين المرتل والمجود والمعلم'
-                            : 'اختر بين المرتل والمجود'),
+                            ? 'reciter_style_desc_3'.tr
+                            : 'reciter_style_desc_2'.tr),
                         trailing: DropdownButton<String>(
                           value: style == 'teacher' && reciterId != 6 ? 'murattal' : style,
                           dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
@@ -111,14 +85,14 @@ class SettingsScreen extends GetView<SettingsController> {
                             fontFamily: 'system-ui',
                           ),
                           items: reciterId == 6
-                              ? const [
-                                  DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                  DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
-                                  DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
+                              ? [
+                                  DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                                  DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
+                                  DropdownMenuItem(value: 'teacher', child: Text('teacher'.tr)),
                                 ]
-                              : const [
-                                  DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                  DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
+                              : [
+                                  DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                                  DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
                                 ],
                           onChanged: (val) {
                             if (val != null) controller.updateStyle(val);
@@ -130,8 +104,8 @@ class SettingsScreen extends GetView<SettingsController> {
                     
                     // Theme Selector
                     SwitchListTile(
-                      title: const Text('المظهر الداكن'),
-                      subtitle: const Text('تفعيل الخلفيات الداكنة لراحة العينين'),
+                      title: Text('dark_mode'.tr),
+                      subtitle: Text('dark_mode_desc'.tr),
                       value: isDark,
                       activeThumbColor: AppColors.primary,
                       onChanged: (val) => controller.toggleTheme(val),
@@ -139,8 +113,8 @@ class SettingsScreen extends GetView<SettingsController> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
                     SwitchListTile(
-                      title: const Text('إبقاء الشاشة مضيئة'),
-                      subtitle: const Text('منع انطفاء الشاشة أثناء قراءة المصحف الشريف'),
+                      title: Text('keep_screen_on'.tr),
+                      subtitle: Text('keep_screen_on_desc'.tr),
                       value: controller.keepScreenOn.value,
                       activeThumbColor: AppColors.primary,
                       onChanged: (val) => controller.toggleKeepScreenOn(val),
@@ -148,8 +122,8 @@ class SettingsScreen extends GetView<SettingsController> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
                     ListTile(
-                      title: const Text('لغة التطبيق / App Language'),
-                      subtitle: Text(lang == 'ar' ? 'العربية' : 'English'),
+                      title: Text('app_lang'.tr),
+                      subtitle: Text(lang == 'ar' ? 'arabic'.tr : 'english'.tr),
                       trailing: DropdownButton<String>(
                         value: lang,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,
@@ -158,26 +132,16 @@ class SettingsScreen extends GetView<SettingsController> {
                           fontSize: 16,
                           fontFamily: 'system-ui',
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                          DropdownMenuItem(value: 'en', child: Text('English')),
+                        items: [
+                          DropdownMenuItem(value: 'ar', child: Text('arabic'.tr)),
+                          DropdownMenuItem(value: 'en', child: Text('english'.tr)),
                         ],
                         onChanged: (val) {
                           if (val != null) controller.updateLanguage(val);
                         },
                       ),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    
-                    // Notification Pipeline Test
-                    ListTile(
-                      title: const Text('اختبار إشعارات المنبه'),
-                      subtitle: const Text('محاكاة فحص إنجاز الورد اليومي وإرسال إشعار فوري'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.notification_important, color: AppColors.primary),
-                        onPressed: () => controller.triggerTestNotification(),
-                      ),
-                    ),
+
                   ],
                 ),
               ),
@@ -190,16 +154,16 @@ class SettingsScreen extends GetView<SettingsController> {
                   borderRadius: BorderRadius.circular(12),
                   side: const BorderSide(color: AppColors.primary, width: 0.5),
                 ),
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: AppColors.primary),
-                      SizedBox(width: 12),
+                      const Icon(Icons.info_outline, color: AppColors.primary),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'عند ضبط وقت تنبيه الورد اليومي، سيقوم التطبيق بفحص أوتوماتيكي للتأكد من إنجاز دقائق القراءة المستهدفة وتذكيرك في حال عدم الإكمال.',
-                          style: TextStyle(
+                          'background_remind_info'.tr,
+                          style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 13,
                             height: 1.4,
