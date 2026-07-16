@@ -372,9 +372,27 @@ class AudioHubController extends GetxController {
       audioPathsOrUrls = ['${moshaf.server}$surahCode.mp3'];
     }
 
+    final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
+    final isAr = _storage.getAppLanguage() == 'ar';
+    final displayName = isAr
+        ? (quranLibrarySurah?.name ?? chapter.nameArabic)
+        : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
+
+    final mediaItem = MediaItem(
+      id: 'audio_hub_${reciter.id}_${moshaf.id}_${chapter.id}',
+      title: displayName,
+      artist: reciter.name,
+      album: isAr ? 'مكتبة التلاوات' : 'Audio Hub Library',
+    );
+
     try {
       _audio.onChapterFinished = _playNextChapter;
-      await _audio.playSurah(chapter, audioPathsOrUrls, clearCompletionCallback: false);
+      await _audio.playSurah(
+        chapter,
+        audioPathsOrUrls,
+        clearCompletionCallback: false,
+        mediaItems: [mediaItem],
+      );
     } catch (e) {
       Get.snackbar(
         'خطأ في تشغيل الصوت',

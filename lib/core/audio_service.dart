@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:get/get.dart';
 import 'storage_service.dart';
 import '../models.dart';
@@ -20,7 +22,7 @@ class HifzLoopConfig {
   bool get isActive => startVerseKey.isNotEmpty;
 }
 
-class AudioService extends GetxService {
+class AudioService extends GetxService with WidgetsBindingObserver {
   final StorageService _storageService = Get.find<StorageService>();
   final AudioPlayer _player = AudioPlayer();
 
@@ -51,7 +53,30 @@ class AudioService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _init();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _playerStateSub?.cancel();
+    _currentIndexSub?.cancel();
+    _positionSub?.cancel();
+    _durationSub?.cancel();
+    _player.dispose();
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused) {
+      // If we are NOT in Audio Hub mode, pause the player when app goes to background
+      if (onChapterFinished == null) {
+        pause();
+      }
+    }
   }
 
   Future<void> Function()? onChapterFinished;
@@ -100,7 +125,7 @@ class AudioService extends GetxService {
 
   /// Start playing a Surah.
   /// `audioPathsOrUrls` contains the path/URL for each Ayah.
-  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true}) async {
+  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true, List<MediaItem>? mediaItems}) async {
     if (clearCompletionCallback) {
       onChapterFinished = null;
     }
@@ -112,15 +137,30 @@ class AudioService extends GetxService {
     _loopConfig = null;
     _lastTrackedIndex = null;
 
+    final isAr = _storageService.getAppLanguage() == 'ar';
+
     final playlist = ConcatenatingAudioSource(
       useLazyPreparation: true,
-      children: audioPathsOrUrls.map((path) {
-        if (path.startsWith('http')) {
-          return AudioSource.uri(Uri.parse(path));
+      children: List.generate(audioPathsOrUrls.length, (index) {
+        final path = audioPathsOrUrls[index];
+        final MediaItem tag;
+        if (mediaItems != null && index < mediaItems.length) {
+          tag = mediaItems[index];
         } else {
-          return AudioSource.file(path);
+          tag = MediaItem(
+            id: 'audio_${chapter.id}_$index',
+            title: isAr ? 'سورة ${chapter.nameArabic}' : chapter.nameSimple,
+            artist: isAr ? 'آية ${index + 1}' : 'Ayah ${index + 1}',
+            album: isAr ? 'المصحف الشريف' : 'Holy Quran',
+          );
         }
-      }).toList(),
+
+        if (path.startsWith('http')) {
+          return AudioSource.uri(Uri.parse(path), tag: tag);
+        } else {
+          return AudioSource.file(path, tag: tag);
+        }
+      }),
     );
 
     try {
@@ -250,15 +290,5 @@ class AudioService extends GetxService {
     } else {
       _lastTrackedIndex = currentIndex;
     }
-  }
-
-  @override
-  void onClose() {
-    _playerStateSub?.cancel();
-    _currentIndexSub?.cancel();
-    _positionSub?.cancel();
-    _durationSub?.cancel();
-    _player.dispose();
-    super.onClose();
   }
 }

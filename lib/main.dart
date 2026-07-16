@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import 'package:get/get.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'core/storage_service.dart';
 import 'core/api_service.dart';
 import 'core/download_service.dart';
@@ -21,6 +22,12 @@ Future<void> initServices() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.tarteel.quran.audio',
+    androidNotificationChannelName: 'Quran Playback',
+    androidNotificationOngoing: true,
+  );
+  SurahState.setAudioServiceActive(true);
   await QuranLibrary.init();
   QuranLibrary.initWordAudio();
   await initServices();
