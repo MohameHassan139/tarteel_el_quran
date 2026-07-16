@@ -11,12 +11,14 @@ class HifzLoopConfig {
   final String endVerseKey;
   final int verseRepetitions; // Repeat each verse X times
   final int rangeRepetitions; // Repeat the whole range Y times
+  final int delaySeconds;      // Delay/silence in seconds between verses
   
   HifzLoopConfig({
     required this.startVerseKey,
     required this.endVerseKey,
     this.verseRepetitions = 1,
     this.rangeRepetitions = 1,
+    this.delaySeconds = 0,
   });
 
   bool get isActive => startVerseKey.isNotEmpty;
@@ -38,6 +40,10 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   final RxInt verseRepeat = 0.obs;
   final RxInt rangeRepeat = 0.obs;
 
+  // Hifz delay reactive states
+  final RxBool isWaitingDelay = false.obs;
+  final RxInt delayCountdown = 0.obs;
+
   StreamSubscription? _playerStateSub;
   StreamSubscription? _currentIndexSub;
   StreamSubscription? _positionSub;
@@ -49,6 +55,15 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   int _currentRangeRepeatCount = 0;
   int? _lastTrackedIndex;
   bool _isCompleted = false;
+
+  // Hifz sequential playback tracking
+  List<String> _hifzAudioPathsOrUrls = [];
+  int _hifzCurrentIndex = 0;
+  int _hifzStartIndex = 0;
+  int _hifzEndIndex = 0;
+  Timer? _delayTimer;
+
+  bool get isHifzMode => _loopConfig != null;
 
   @override
   void onInit() {
@@ -64,6 +79,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     _currentIndexSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
+    _delayTimer?.cancel();
     _player.dispose();
     super.onClose();
   }
@@ -96,7 +112,8 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     });
 
     _currentIndexSub = _player.currentIndexStream.listen((index) {
-      if (index != null && _activeChapter != null) {
+      // Only update active verse from playlist index if not in Hifz mode (which uses single items)
+      if (index != null && _activeChapter != null && !isHifzMode) {
         _updateActiveVerse(index);
       }
     });
@@ -113,7 +130,9 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   }
 
   void _handlePlaybackCompleted() {
-    if (onChapterFinished != null) {
+    if (isHifzMode) {
+      _handleHifzAyahCompleted();
+    } else if (onChapterFinished != null) {
       Future.delayed(const Duration(milliseconds: 500), () {
         onChapterFinished?.call();
       });
@@ -172,51 +191,216 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     }
   }
 
+  /// Start Hifz playback loop using the sequential single-item player state machine.
   Future<void> playHifz(Chapter chapter, List<String> audioPathsOrUrls, HifzLoopConfig config) async {
-    await playSurah(chapter, audioPathsOrUrls);
+    await stop();
+
+    _activeChapter = chapter;
+    activeChapter.value = chapter;
     _loopConfig = config;
+    _hifzAudioPathsOrUrls = audioPathsOrUrls;
+
+    _hifzStartIndex = _getIndexForKey(config.startVerseKey);
+    _hifzEndIndex = _getIndexForKey(config.endVerseKey);
+
+    if (_hifzStartIndex == -1 || _hifzEndIndex == -1) {
+      await stop();
+      return;
+    }
+
+    _hifzCurrentIndex = _hifzStartIndex;
     _currentVerseRepeatCount = 0;
     _currentRangeRepeatCount = 0;
     verseRepeat.value = 0;
     rangeRepeat.value = 0;
 
-    // Seek to the start of the first verse in the range
-    final startIndex = _getIndexForKey(config.startVerseKey);
-    if (startIndex != -1) {
-      await _player.seek(Duration.zero, index: startIndex);
+    isWaitingDelay.value = false;
+    delayCountdown.value = 0;
+    _delayTimer?.cancel();
+
+    await _playHifzCurrentAyah();
+  }
+
+  Future<void> _playHifzCurrentAyah() async {
+    if (_activeChapter == null || _loopConfig == null || _hifzAudioPathsOrUrls.isEmpty) return;
+
+    final path = _hifzAudioPathsOrUrls[_hifzCurrentIndex];
+    final activeKey = '${_activeChapter!.id}:${_hifzCurrentIndex + 1}';
+    activeVerseKey.value = activeKey;
+
+    isWaitingDelay.value = false;
+    _delayTimer?.cancel();
+
+    final isAr = _storageService.getAppLanguage() == 'ar';
+    final MediaItem tag = MediaItem(
+      id: 'hifz_${_activeChapter!.id}_$_hifzCurrentIndex',
+      title: isAr ? 'سورة ${_activeChapter!.nameArabic}' : _activeChapter!.nameSimple,
+      artist: isAr ? 'آية ${_hifzCurrentIndex + 1}' : 'Ayah ${_hifzCurrentIndex + 1}',
+      album: isAr ? 'مساحة الحفظ والتركيز' : 'Memorization Workspace',
+    );
+
+    final AudioSource source = path.startsWith('http')
+        ? AudioSource.uri(Uri.parse(path), tag: tag)
+        : AudioSource.file(path, tag: tag);
+
+    try {
+      _isCompleted = false;
+      await _player.setAudioSource(source);
+      await _player.play();
+    } catch (_) {
+      rethrow;
     }
   }
 
+  Future<void> _handleHifzAyahCompleted() async {
+    final loop = _loopConfig;
+    if (loop == null) return;
+
+    _currentVerseRepeatCount++;
+    verseRepeat.value = _currentVerseRepeatCount;
+
+    if (_currentVerseRepeatCount < loop.verseRepetitions) {
+      // Repeat the current ayah
+      if (loop.delaySeconds > 0) {
+        await _startHifzDelayTimer(() {
+          _playHifzCurrentAyah();
+        });
+      } else {
+        _isCompleted = false;
+        await _player.seek(Duration.zero);
+        await _player.play();
+      }
+    } else {
+      // Move to the next ayah
+      _currentVerseRepeatCount = 0;
+      verseRepeat.value = 0;
+
+      if (_hifzCurrentIndex < _hifzEndIndex) {
+        _hifzCurrentIndex++;
+        if (loop.delaySeconds > 0) {
+          await _startHifzDelayTimer(() {
+            _playHifzCurrentAyah();
+          });
+        } else {
+          await _playHifzCurrentAyah();
+        }
+      } else {
+        // Completed the range loop
+        _currentRangeRepeatCount++;
+        rangeRepeat.value = _currentRangeRepeatCount;
+
+        if (_currentRangeRepeatCount < loop.rangeRepetitions) {
+          _hifzCurrentIndex = _hifzStartIndex;
+          if (loop.delaySeconds > 0) {
+            await _startHifzDelayTimer(() {
+              _playHifzCurrentAyah();
+            });
+          } else {
+            await _playHifzCurrentAyah();
+          }
+        } else {
+          // Finished all repetitions and ranges
+          await stop();
+        }
+      }
+    }
+  }
+
+  Future<void> _startHifzDelayTimer(VoidCallback onFinished) async {
+    isWaitingDelay.value = true;
+    delayCountdown.value = _loopConfig?.delaySeconds ?? 0;
+
+    _delayTimer?.cancel();
+    _delayTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (delayCountdown.value > 1) {
+        delayCountdown.value--;
+      } else {
+        timer.cancel();
+        isWaitingDelay.value = false;
+        delayCountdown.value = 0;
+        onFinished();
+      }
+    });
+  }
+
   Future<void> pause() async {
-    await _player.pause();
+    if (isWaitingDelay.value) {
+      _delayTimer?.cancel();
+    } else {
+      await _player.pause();
+    }
+    isPlaying.value = false;
   }
 
   Future<void> resume() async {
-    await _player.play();
+    if (isWaitingDelay.value) {
+      _startHifzDelayTimer(() {
+        _playHifzCurrentAyah();
+      });
+    } else {
+      await _player.play();
+    }
+    isPlaying.value = true;
   }
 
   Future<void> stop() async {
     _isCompleted = true;
+    _delayTimer?.cancel();
+    isWaitingDelay.value = false;
+    delayCountdown.value = 0;
     await _player.stop();
     _activeChapter = null;
     activeChapter.value = null;
     activeVerseKey.value = null;
     _loopConfig = null;
+    _hifzAudioPathsOrUrls = [];
   }
 
   Future<void> seek(Duration targetPosition) async {
-    await _player.seek(targetPosition);
+    if (!isWaitingDelay.value) {
+      await _player.seek(targetPosition);
+    }
   }
 
   /// Seek directly to a specific Verse by key.
   Future<void> seekToVerse(String verseKey) async {
     final index = _getIndexForKey(verseKey);
     if (index != -1) {
-      await _player.seek(Duration.zero, index: index);
+      if (isHifzMode) {
+        if (index >= _hifzStartIndex && index <= _hifzEndIndex) {
+          _hifzCurrentIndex = index;
+          _currentVerseRepeatCount = 0;
+          verseRepeat.value = 0;
+          await _playHifzCurrentAyah();
+        }
+      } else {
+        await _player.seek(Duration.zero, index: index);
+      }
     }
   }
 
-  /// Enable or disable single-ayah repeat mode.
+  bool get canGoNextHifz => isHifzMode && _hifzCurrentIndex < _hifzEndIndex;
+  bool get canGoPrevHifz => isHifzMode && _hifzCurrentIndex > _hifzStartIndex;
+
+  Future<void> playNextHifz() async {
+    if (canGoNextHifz) {
+      _hifzCurrentIndex++;
+      _currentVerseRepeatCount = 0;
+      verseRepeat.value = 0;
+      await _playHifzCurrentAyah();
+    }
+  }
+
+  Future<void> playPrevHifz() async {
+    if (canGoPrevHifz) {
+      _hifzCurrentIndex--;
+      _currentVerseRepeatCount = 0;
+      verseRepeat.value = 0;
+      await _playHifzCurrentAyah();
+    }
+  }
+
+  /// Enable or disable single-ayah repeat mode (used in normal Mushaf mode).
   void setRepeatCurrentAyah(bool enabled) {
     if (enabled) {
       _player.setLoopMode(LoopMode.one);
@@ -234,7 +418,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     return -1;
   }
 
-  /// Synchronize active verse with play index, and handle looping.
+  /// Synchronize active verse with play index (used in normal Mushaf mode).
   Future<void> _updateActiveVerse(int currentIndex) async {
     if (_activeChapter == null) return;
     
@@ -243,52 +427,6 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     if (activeVerseKey.value != activeKey) {
       activeVerseKey.value = activeKey;
     }
-
-    // Process Hifz Looping if active
-    final loop = _loopConfig;
-    if (loop != null && loop.isActive && _lastTrackedIndex != currentIndex) {
-      final startIndex = _getIndexForKey(loop.startVerseKey);
-      final endIndex = _getIndexForKey(loop.endVerseKey);
-      
-      if (startIndex == -1 || endIndex == -1) return;
-
-      // 1. If position goes beyond the end of the whole range
-      if (currentIndex > endIndex) {
-        _currentRangeRepeatCount++;
-        rangeRepeat.value = _currentRangeRepeatCount;
-        if (_currentRangeRepeatCount < loop.rangeRepetitions) {
-          // Loop the entire range again
-          _currentVerseRepeatCount = 0;
-          verseRepeat.value = 0;
-          _player.seek(Duration.zero, index: startIndex);
-          return;
-        } else {
-          // Finished all loop iterations
-          stop();
-          return;
-        }
-      }
-
-      // 2. Handle single-verse repetitions
-      if (_lastTrackedIndex != null && _lastTrackedIndex == currentIndex - 1) {
-        // We just advanced to the next track. Let's see if we should repeat the previous track
-        if (_currentVerseRepeatCount < loop.verseRepetitions - 1) {
-          _currentVerseRepeatCount++;
-          verseRepeat.value = _currentVerseRepeatCount;
-          _player.seek(Duration.zero, index: _lastTrackedIndex);
-          return; // Don't update lastTrackedIndex so we repeat
-        } else {
-          // Finished repeating this verse, move on.
-          _currentVerseRepeatCount = 0;
-          verseRepeat.value = 0;
-        }
-      } else if (_lastTrackedIndex != currentIndex) {
-         _currentVerseRepeatCount = 0;
-         verseRepeat.value = 0;
-      }
-      _lastTrackedIndex = currentIndex;
-    } else {
-      _lastTrackedIndex = currentIndex;
-    }
+    _lastTrackedIndex = currentIndex;
   }
 }

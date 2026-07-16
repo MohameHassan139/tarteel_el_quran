@@ -299,4 +299,36 @@ class StorageService extends GetxService {
     final files = dir.listSync().where((f) => f.path.endsWith('.mp3')).toList();
     return files.length == 1; // Always a single file download
   }
+
+  // --- Quran Memorization (Hifz) Helpers ---
+
+  Map<String, dynamic>? getLastHifzSession() {
+    final rawJson = _settingsBox.get('last_hifz_session') as String?;
+    if (rawJson == null) return null;
+    try {
+      return jsonDecode(rawJson) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveLastHifzSession(Map<String, dynamic> session) async {
+    await _settingsBox.put('last_hifz_session', jsonEncode(session));
+  }
+
+  List<Map<String, dynamic>> getHifzHistory() {
+    final rawJson = _settingsBox.get('hifz_history') as String?;
+    if (rawJson == null) return [];
+    try {
+      final decoded = jsonDecode(rawJson) as List;
+      return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveHifzHistory(List<Map<String, dynamic>> history) async {
+    await _settingsBox.put('hifz_history', jsonEncode(history));
+  }
 }
+
