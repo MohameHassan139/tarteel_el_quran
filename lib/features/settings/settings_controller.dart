@@ -80,7 +80,10 @@ class SettingsController extends GetxController {
     await _storage.setAppLanguage(value);
     appLanguage.value = value;
     Get.updateLocale(Locale(value));
-    await _reminder.rescheduleAllReminders();
+    
+    // Reschedule reminder notifications in the new language
+    final goal = _storage.getWardGoal();
+    await _reminder.scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
   }
 
   Future<void> toggleKeepScreenOn(bool value) async {

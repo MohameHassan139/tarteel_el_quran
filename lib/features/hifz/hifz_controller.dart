@@ -73,11 +73,19 @@ class HifzController extends GetxController {
     loadHistory();
     loadTranslations();
     loadFontSizes();
+    initQuranData();
 
     // Listen to changes in the active reciting verse
     _activeVerseSub = _audio.activeVerseKey.listen((activeKey) {
       _onActiveVerseChanged(activeKey);
     });
+  }
+
+  Future<void> initQuranData() async {
+    try {
+      await QuranCtrl.instance.ensureCoreDataLoaded();
+      update();
+    } catch (_) {}
   }
 
   void loadChapters() {
@@ -470,6 +478,7 @@ class HifzController extends GetxController {
     final chapter = selectedChapter.value;
     if (chapter == null) return '';
     final surahIndex = chapter.id - 1;
+    if (surahIndex < 0 || surahIndex >= QuranCtrl.instance.surahs.length) return '';
     final ayahs = QuranCtrl.instance.surahs[surahIndex].ayahs;
     final startIdx = startAyah.value - 1;
     if (startIdx >= 0 && startIdx < ayahs.length) {
@@ -482,6 +491,7 @@ class HifzController extends GetxController {
     final chapter = selectedChapter.value;
     if (chapter == null) return '';
     final surahIndex = chapter.id - 1;
+    if (surahIndex < 0 || surahIndex >= QuranCtrl.instance.surahs.length) return '';
     final ayahs = QuranCtrl.instance.surahs[surahIndex].ayahs;
     final endIdx = endAyah.value - 1;
     if (endIdx >= 0 && endIdx < ayahs.length) {

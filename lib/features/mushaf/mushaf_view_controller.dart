@@ -5,6 +5,7 @@ import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../core/audio_service.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
+import '../../core/reminder_service.dart';
 import '../../models.dart';
 
 class MushafViewController extends GetxController {
@@ -64,7 +65,19 @@ class MushafViewController extends GetxController {
 
   void _startStopwatch() {
     _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final goalBefore = storage.getWardGoal();
+      final targetSeconds = goalBefore.targetMinutes * 60;
+      final beforeSeconds = goalBefore.activeSecondsToday;
+
       storage.logReadingSeconds(1);
+
+      final goalAfter = storage.getWardGoal();
+      final afterSeconds = goalAfter.activeSecondsToday;
+
+      if (beforeSeconds < targetSeconds && afterSeconds >= targetSeconds) {
+        // Goal achieved just now! Trigger celebratory instant notification
+        Get.find<ReminderService>().triggerCelebrationNotification();
+      }
     });
   }
 
@@ -183,6 +196,13 @@ class MushafViewController extends GetxController {
     _activeVerseSub?.cancel();
     _selectedAyahSub?.cancel();
     QuranCtrl.instance.clearExternalHighlights();
+
+    // Reschedule daily reminders to reflect updated progress
+    try {
+      final goal = storage.getWardGoal();
+      Get.find<ReminderService>().scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
+    } catch (_) {}
+
     super.onClose();
   }
 }

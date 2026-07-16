@@ -33,7 +33,7 @@ class WardController extends GetxController {
   Future<void> updateTargetMinutes(int minutes) async {
     final updated = wardGoal.value.copyWith(targetMinutes: minutes);
     await _storage.saveWardGoal(updated);
-    await _reminder.rescheduleAllReminders();
+    await _reminder.scheduleDailyReminder(updated.reminderHour, updated.reminderMinute);
     wardGoal.value = updated;
   }
 

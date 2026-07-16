@@ -1,9 +1,9 @@
-import 'dart:math' as math;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:get/get.dart';
 import 'storage_service.dart';
+import 'reminder_messages.dart';
 
 class ReminderService extends GetxService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -18,9 +18,9 @@ class ReminderService extends GetxService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const InitializationSettings initSettings = InitializationSettings(
@@ -30,14 +30,17 @@ class ReminderService extends GetxService {
 
     await _notificationsPlugin.initialize(settings: initSettings);
 
-    // Request notification permissions for Android 13+
+    // Request notification permissions for Android 13+ and iOS
     _requestAndroidPermissions();
-    
-    // Reschedule on startup to keep rolling window updated
+    _requestIOSPermissions();
+
+    // Automatically reschedule on init (rolls forward the 30 days daily reminder window)
     try {
-      await rescheduleAllReminders();
+      final storage = Get.find<StorageService>();
+      final goal = storage.getWardGoal();
+      await scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
     } catch (_) {}
-    
+
     return this;
   }
 
@@ -50,80 +53,102 @@ class ReminderService extends GetxService {
     }
   }
 
-  /// Schedule a daily notification at a specific hour and minute.
-  /// (Kept for compatibility with other files)
-  Future<void> scheduleDailyReminder(int hour, int minute) async {
-    await rescheduleAllReminders();
+  Future<void> _requestIOSPermissions() async {
+    final iosPlugin = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    if (iosPlugin != null) {
+      await iosPlugin.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
   }
 
-  /// Reschedules 30 days of randomized reminder notifications.
-  Future<void> rescheduleAllReminders() async {
+  /// Schedule a daily notification at a specific hour and minute for the next 30 days.
+  Future<void> scheduleDailyReminder(int hour, int minute) async {
+    await cancelReminder(); // Remove any previous schedules
+
     final storage = Get.find<StorageService>();
-    final goal = storage.getWardGoal();
-    
-    // Cancel all previous scheduled notifications in the range
-    for (int i = 0; i < 75; i++) {
-      await _notificationsPlugin.cancel(id: reminderId + i);
-    }
-
-    final now = tz.TZDateTime.now(tz.local);
-    final messages = storage.getReminderMessages();
-    if (messages.isEmpty) return;
-
     final lang = storage.getAppLanguage();
-    final isAr = lang == 'ar';
+    final goal = storage.getWardGoal();
     final targetSeconds = goal.targetMinutes * 60;
-    final activeSeconds = goal.activeSecondsToday;
+    
+    final randomSeed = DateTime.now().millisecond;
+    final now = tz.TZDateTime.now(tz.local);
+    final todayScheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
 
-    final rand = math.Random();
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'daily_ward_channel',
+      'Daily Ward Reminders',
+      channelDescription: 'Fired to remind the user to complete their daily Quran reading goal.',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
 
-    for (int i = 0; i < 64; i++) {
-      var scheduledDate = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day,
-        goal.reminderHour,
-        goal.reminderMinute,
-      ).add(Duration(days: i));
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
 
-      // For day 0 (today), if the reminder time has already passed today, skip scheduling it
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    for (int i = 0; i < 30; i++) {
+      final scheduledDate = todayScheduled.add(Duration(days: i));
+
+      // If scheduled time for today (i == 0) has already passed, skip today
       if (i == 0 && scheduledDate.isBefore(now)) {
         continue;
       }
 
-      // Determine category for this day
-      String category = 'start';
+      // Determine category based on day and current progress
+      String category;
+      String title;
+      List<ReminderMessage> messages;
+
       if (i == 0) {
-        if (activeSeconds >= targetSeconds) {
-          category = 'completed';
-        } else if (activeSeconds > 0) {
+        // Today's actual progress
+        final active = goal.activeSecondsToday;
+        if (active == 0) {
+          category = 'start';
+        } else if (active < targetSeconds) {
           category = 'incomplete';
+        } else {
+          category = 'completed';
         }
+      } else {
+        // Future days start with 0 progress initially
+        category = 'start';
       }
 
-      // Filter messages by category
-      final categoryMsgs = messages.where((m) => m.category == category).toList();
-      final selectedList = categoryMsgs.isNotEmpty ? categoryMsgs : messages;
+      // Select random message from the category
+      if (category == 'start') {
+        messages = ReminderMessages.startWird;
+        title = lang == 'ar' ? '📖 جاء موعد الورد اليومي' : '📖 Time for Daily Wird';
+      } else if (category == 'incomplete') {
+        messages = ReminderMessages.incompleteWird;
+        title = lang == 'ar' ? '🌿 لم يُكمل الورد اليومي' : '🌿 Daily Wird Incomplete';
+      } else {
+        messages = ReminderMessages.completedWird;
+        title = lang == 'ar' ? '🌸 أكمل الورد اليومي' : '🌸 Daily Wird Completed';
+      }
+
+      if (messages.isEmpty) continue;
       
-      // Select random message
-      final msg = selectedList[rand.nextInt(selectedList.length)];
-
-      final String title = _getTitleForCategory(category, isAr);
-      final String body = isAr ? msg.textAr : msg.textEn;
-
-      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        'daily_ward_channel',
-        'Daily Ward Reminders',
-        channelDescription: 'Fired to remind the user to complete their daily Quran reading goal.',
-        importance: Importance.max,
-        priority: Priority.high,
-      );
-
-      const NotificationDetails platformDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: DarwinNotificationDetails(),
-      );
+      final messageIndex = (randomSeed + i) % messages.length;
+      final selectedMsg = messages[messageIndex];
+      final body = lang == 'ar' ? selectedMsg.textAr : selectedMsg.textEn;
 
       await _notificationsPlugin.zonedSchedule(
         id: reminderId + i,
@@ -136,46 +161,25 @@ class ReminderService extends GetxService {
     }
   }
 
-  String _getTitleForCategory(String category, bool isAr) {
-    switch (category) {
-      case 'completed':
-        return isAr ? '🌸 أكملت الورد اليومي' : '🌸 Daily Wird Completed';
-      case 'incomplete':
-        return isAr ? '🌿 لم يُكمل الورد اليومي' : '🌿 Daily Wird Incomplete';
-      case 'start':
-      default:
-        return isAr ? '📖 جاء موعد الورد اليومي' : '📖 Time for Daily Wird';
-    }
-  }
-
   Future<void> cancelReminder() async {
-    for (int i = 0; i < 75; i++) {
+    for (int i = 0; i < 30; i++) {
       await _notificationsPlugin.cancel(id: reminderId + i);
     }
   }
 
-  /// Fire an immediate completed/celebration notification.
-  Future<void> triggerInstantTestNotification() async {
-    await showCelebrationNotification();
-  }
-
-  /// Fires an immediate celebratory notification using randomized messages.
-  Future<void> showCelebrationNotification() async {
+  /// Fire an immediate celebration notification.
+  Future<void> triggerCelebrationNotification() async {
     final storage = Get.find<StorageService>();
-    final messages = storage.getReminderMessages();
     final lang = storage.getAppLanguage();
-    final isAr = lang == 'ar';
 
-    final categoryMsgs = messages.where((m) => m.category == 'completed').toList();
-    final selectedList = categoryMsgs.isNotEmpty ? categoryMsgs : messages;
-    
-    if (selectedList.isEmpty) return;
-    
-    final rand = math.Random();
-    final msg = selectedList[rand.nextInt(selectedList.length)];
+    final messages = ReminderMessages.completedWird;
+    if (messages.isEmpty) return;
 
-    final String title = isAr ? '🌸 أكملت الورد اليومي' : '🌸 Daily Wird Completed';
-    final String body = isAr ? msg.textAr : msg.textEn;
+    final randomSeed = DateTime.now().millisecond;
+    final selectedMsg = messages[randomSeed % messages.length];
+    
+    final title = lang == 'ar' ? '🌸 أكمل الورد اليومي' : '🌸 Daily Wird Completed';
+    final body = lang == 'ar' ? selectedMsg.textAr : selectedMsg.textEn;
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'daily_ward_channel',
@@ -185,16 +189,82 @@ class ReminderService extends GetxService {
       priority: Priority.high,
     );
 
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
     const NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
-      iOS: DarwinNotificationDetails(),
+      iOS: iosDetails,
     );
 
     await _notificationsPlugin.show(
-      id: reminderId + 100, // Unique ID for instant celebration
+      id: reminderId + 100, // Celebration Notification ID
       title: title,
+      body: body,
+      notificationDetails: platformDetails,
+    );
+
+    // Also reschedule future reminders so that today's reminder is updated to Case 3 (Completed)
+    final goal = storage.getWardGoal();
+    await scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
+  }
+
+  /// Fire an immediate test notification simulating progress.
+  Future<void> triggerInstantTestNotification() async {
+    final storage = Get.find<StorageService>();
+    final lang = storage.getAppLanguage();
+    final goal = storage.getWardGoal();
+    final targetSeconds = goal.targetMinutes * 60;
+    final active = goal.activeSecondsToday;
+
+    String title;
+    List<ReminderMessage> messages;
+
+    if (active == 0) {
+      title = lang == 'ar' ? '📖 جاء موعد الورد اليومي' : '📖 Time for Daily Wird';
+      messages = ReminderMessages.startWird;
+    } else if (active < targetSeconds) {
+      title = lang == 'ar' ? '🌿 لم يُكمل الورد اليومي' : '🌿 Daily Wird Incomplete';
+      messages = ReminderMessages.incompleteWird;
+    } else {
+      title = lang == 'ar' ? '🌸 أكمل الورد اليومي' : '🌸 Daily Wird Completed';
+      messages = ReminderMessages.completedWird;
+    }
+
+    if (messages.isEmpty) return;
+
+    final randomSeed = DateTime.now().millisecond;
+    final selectedMsg = messages[randomSeed % messages.length];
+    final body = lang == 'ar' ? selectedMsg.textAr : selectedMsg.textEn;
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'daily_ward_channel',
+      'Daily Ward Reminders',
+      channelDescription: 'Fired to remind the user to complete their daily Quran reading goal.',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notificationsPlugin.show(
+      id: reminderId + 101, // Test Notification ID
+      title: '$title (Test)',
       body: body,
       notificationDetails: platformDetails,
     );
   }
 }
+

@@ -36,36 +36,40 @@ class SettingsScreen extends GetView<SettingsController> {
                     ListTile(
                       title: Text('selected_reciter'.tr),
                       subtitle: Text('reciter_desc'.tr),
-                      trailing: DropdownButton<int>(
-                        value: reciterId,
-                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontSize: 16,
-                          fontFamily: 'system-ui',
+                      trailing: SizedBox(
+                        width: 160,
+                        child: DropdownButton<int>(
+                          isExpanded: true,
+                          value: reciterId,
+                          dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 16,
+                            fontFamily: 'system-ui',
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 7, child: Text('reciter_7'.tr)),
+                            DropdownMenuItem(value: 6, child: Text('reciter_6'.tr)),
+                            DropdownMenuItem(value: 2, child: Text('reciter_2'.tr)),
+                            DropdownMenuItem(value: 9, child: Text('reciter_9'.tr)),
+                            DropdownMenuItem(value: 10, child: Text('reciter_10'.tr)),
+                            DropdownMenuItem(value: 3, child: Text('reciter_3'.tr)),
+                            DropdownMenuItem(value: 17, child: Text('reciter_17'.tr)),
+                            DropdownMenuItem(value: 15, child: Text('reciter_15'.tr)),
+                            DropdownMenuItem(value: 20, child: Text('reciter_20'.tr)),
+                            DropdownMenuItem(value: 22, child: Text('reciter_22'.tr)),
+                            DropdownMenuItem(value: 23, child: Text('reciter_23'.tr)),
+                            DropdownMenuItem(value: 11, child: Text('reciter_11'.tr)),
+                            DropdownMenuItem(value: 14, child: Text('reciter_14'.tr)),
+                            DropdownMenuItem(value: 16, child: Text('reciter_16'.tr)),
+                            DropdownMenuItem(value: 18, child: Text('reciter_18'.tr)),
+                            DropdownMenuItem(value: 19, child: Text('reciter_19'.tr)),
+                            DropdownMenuItem(value: 21, child: Text('reciter_21'.tr)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) controller.updateReciter(val);
+                          },
                         ),
-                        items: [
-                          DropdownMenuItem(value: 7, child: Text('reciter_7'.tr)),
-                          DropdownMenuItem(value: 6, child: Text('reciter_6'.tr)),
-                          DropdownMenuItem(value: 2, child: Text('reciter_2'.tr)),
-                          DropdownMenuItem(value: 9, child: Text('reciter_9'.tr)),
-                          DropdownMenuItem(value: 10, child: Text('reciter_10'.tr)),
-                          DropdownMenuItem(value: 3, child: Text('reciter_3'.tr)),
-                          DropdownMenuItem(value: 17, child: Text('reciter_17'.tr)),
-                          DropdownMenuItem(value: 15, child: Text('reciter_15'.tr)),
-                          DropdownMenuItem(value: 20, child: Text('reciter_20'.tr)),
-                          DropdownMenuItem(value: 22, child: Text('reciter_22'.tr)),
-                          DropdownMenuItem(value: 23, child: Text('reciter_23'.tr)),
-                          DropdownMenuItem(value: 11, child: Text('reciter_11'.tr)),
-                          DropdownMenuItem(value: 14, child: Text('reciter_14'.tr)),
-                          DropdownMenuItem(value: 16, child: Text('reciter_16'.tr)),
-                          DropdownMenuItem(value: 18, child: Text('reciter_18'.tr)),
-                          DropdownMenuItem(value: 19, child: Text('reciter_19'.tr)),
-                          DropdownMenuItem(value: 21, child: Text('reciter_21'.tr)),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) controller.updateReciter(val);
-                        },
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -76,27 +80,31 @@ class SettingsScreen extends GetView<SettingsController> {
                         subtitle: Text(reciterId == 6
                             ? 'reciter_style_desc_3'.tr
                             : 'reciter_style_desc_2'.tr),
-                        trailing: DropdownButton<String>(
-                          value: style == 'teacher' && reciterId != 6 ? 'murattal' : style,
-                          dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontSize: 16,
-                            fontFamily: 'system-ui',
+                        trailing: SizedBox(
+                          width: 120,
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: style == 'teacher' && reciterId != 6 ? 'murattal' : style,
+                            dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontSize: 16,
+                              fontFamily: 'system-ui',
+                            ),
+                            items: reciterId == 6
+                                ? [
+                                    DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                                    DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
+                                    DropdownMenuItem(value: 'teacher', child: Text('teacher'.tr)),
+                                  ]
+                                : [
+                                    DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
+                                    DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
+                                  ],
+                            onChanged: (val) {
+                              if (val != null) controller.updateStyle(val);
+                            },
                           ),
-                          items: reciterId == 6
-                              ? [
-                                  DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
-                                  DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
-                                  DropdownMenuItem(value: 'teacher', child: Text('teacher'.tr)),
-                                ]
-                              : [
-                                  DropdownMenuItem(value: 'murattal', child: Text('murattal'.tr)),
-                                  DropdownMenuItem(value: 'mujawwad', child: Text('mujawwad'.tr)),
-                                ],
-                          onChanged: (val) {
-                            if (val != null) controller.updateStyle(val);
-                          },
                         ),
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
@@ -124,21 +132,25 @@ class SettingsScreen extends GetView<SettingsController> {
                     ListTile(
                       title: Text('app_lang'.tr),
                       subtitle: Text(lang == 'ar' ? 'arabic'.tr : 'english'.tr),
-                      trailing: DropdownButton<String>(
-                        value: lang,
-                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontSize: 16,
-                          fontFamily: 'system-ui',
+                      trailing: SizedBox(
+                        width: 120,
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: lang,
+                          dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 16,
+                            fontFamily: 'system-ui',
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'ar', child: Text('arabic'.tr)),
+                            DropdownMenuItem(value: 'en', child: Text('english'.tr)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) controller.updateLanguage(val);
+                          },
                         ),
-                        items: [
-                          DropdownMenuItem(value: 'ar', child: Text('arabic'.tr)),
-                          DropdownMenuItem(value: 'en', child: Text('english'.tr)),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) controller.updateLanguage(val);
-                        },
                       ),
                     ),
 

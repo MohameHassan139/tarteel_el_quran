@@ -141,7 +141,7 @@ class HifzScreen extends GetView<HifzController> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Resume Last Session Card
-          Obx(() {
+          (() {
             final lastSession = controller.storage.getLastHifzSession();
             if (lastSession == null) return const SizedBox();
             
@@ -193,7 +193,7 @@ class HifzScreen extends GetView<HifzController> {
                 ),
               ),
             );
-          }),
+          })(),
 
           Text(
             'choose_surah'.tr,
@@ -357,13 +357,16 @@ class HifzScreen extends GetView<HifzController> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('silence_between_ayahs'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
-                          Text('silence_desc'.tr, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('silence_between_ayahs'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
+                            Text('silence_desc'.tr, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 12),
                       DropdownButton<int>(
                         value: controller.delaySeconds.value,
                         dropdownColor: isDark ? AppColors.cardDark : Colors.white,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'ward_controller.dart';
-import 'customize_messages_screen.dart';
 import '../../core/app_colors.dart';
 
 class WardScreen extends GetView<WardController> {
@@ -160,20 +159,24 @@ class WardScreen extends GetView<WardController> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
-                     ListTile(
+                    ListTile(
                       title: Text('target_daily_duration'.tr),
-                      trailing: DropdownButton<int>(
-                        value: goal.targetMinutes,
-                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                        items: [10, 15, 20, 30, 45, 60].map((e) {
-                          return DropdownMenuItem(
-                            value: e,
-                            child: Text('minutes_param'.trParams({'minutes': '$e'})),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) controller.updateTargetMinutes(val);
-                        },
+                      trailing: SizedBox(
+                        width: 120,
+                        child: DropdownButton<int>(
+                          isExpanded: true,
+                          value: goal.targetMinutes,
+                          dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                          items: [10, 15, 20, 30, 45, 60].map((e) {
+                            return DropdownMenuItem(
+                              value: e,
+                              child: Text('minutes_param'.trParams({'minutes': '$e'})),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) controller.updateTargetMinutes(val);
+                          },
+                        ),
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -189,13 +192,6 @@ class WardScreen extends GetView<WardController> {
                         ),
                         onPressed: () => _pickTime(context),
                       ),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    ListTile(
-                      title: Text('customize_reminder_messages'.tr),
-                      subtitle: Text('customize_reminder_messages_desc'.tr),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
-                      onTap: () => Get.to(() => const CustomizeMessagesScreen()),
                     ),
                   ],
                 ),
