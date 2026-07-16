@@ -8,6 +8,7 @@ import '../../core/storage_service.dart';
 import '../../core/audio_service.dart';
 import '../../models.dart';
 import '../../core/app_colors.dart';
+import 'package:quran_library/quran_library.dart' hide AudioService;
 
 class AudioHubController extends GetxController {
   final ApiService _api = Get.find<ApiService>();
@@ -15,11 +16,18 @@ class AudioHubController extends GetxController {
   final StorageService _storage = Get.find<StorageService>();
   final AudioService _audio = Get.find<AudioService>();
 
+  /// Exposed so the screen can directly observe activeProgress (RxMap)
+  DownloadService get downloadService => _download;
+
   final RxList<Chapter> chapters = <Chapter>[].obs;
   final RxList<Chapter> filteredChapters = <Chapter>[].obs;
   final RxBool isLoading = true.obs;
   final RxString errorMessage = ''.obs;
   final searchController = TextEditingController();
+
+  final RxList<Mp3QuranReciter> mp3Reciters = <Mp3QuranReciter>[].obs;
+  final Rxn<Mp3QuranReciter> selectedReciter = Rxn<Mp3QuranReciter>();
+  final Rxn<Mp3QuranMoshaf> selectedMoshaf = Rxn<Mp3QuranMoshaf>();
 
   // Bulk Downloading state
   final RxBool isBulkDownloading = false.obs;
@@ -28,46 +36,158 @@ class AudioHubController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadChapters();
     searchController.addListener(filterChapters);
+    _initSequenced();
+  }
+
+  /// Load chapters first, then reciters, so filterChapters always
+  /// runs on a populated chapters list.
+  Future<void> _initSequenced() async {
+    await loadChapters();
+    await loadMp3QuranData();
   }
 
   Future<void> loadChapters() async {
+    try {
+      await QuranCtrl.instance.ensureCoreDataLoaded();
+      
+      var list = await _api.fetchChapters();
+      
+      // Fallback: if API list is empty, generate from quran_library
+      if (list.isEmpty) {
+        list = QuranCtrl.instance.surahsList.map((s) => Chapter(
+          id: s.number,
+          nameSimple: s.englishName,
+          nameComplex: s.englishName,
+          nameArabic: s.name,
+          versesCount: s.ayahsNumber,
+          revelationPlace: s.revelationType,
+          revelationOrder: 0,
+          translatedName: s.englishNameTranslation,
+        )).toList();
+      }
+      
+      chapters.assignAll(list);
+      filterChapters();
+    } catch (_) {
+      if (chapters.isEmpty) {
+        final list = QuranCtrl.instance.surahsList.map((s) => Chapter(
+          id: s.number,
+          nameSimple: s.englishName,
+          nameComplex: s.englishName,
+          nameArabic: s.name,
+          versesCount: s.ayahsNumber,
+          revelationPlace: s.revelationType,
+          revelationOrder: 0,
+          translatedName: s.englishNameTranslation,
+        )).toList();
+        chapters.assignAll(list);
+        filterChapters();
+      }
+    }
+  }
+
+  Future<void> loadMp3QuranData() async {
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      final list = await _api.fetchChapters();
-      chapters.assignAll(list);
-      filteredChapters.assignAll(list);
-    } on ApiException catch (e) {
-      errorMessage.value = e.message;
+      final lang = _storage.getAppLanguage();
+      final list = await _api.fetchMp3QuranReciters(language: lang);
+      mp3Reciters.assignAll(list);
+
+      if (list.isNotEmpty) {
+        final savedReciterId = _storage.getSelectedMp3ReciterId();
+        Mp3QuranReciter reciter = list.firstWhere((r) => r.id == savedReciterId, orElse: () => list.first);
+        selectedReciter.value = reciter;
+
+        final savedMoshafId = _storage.getSelectedMp3MoshafId(reciter.id);
+        Mp3QuranMoshaf? moshaf = reciter.moshafs.firstWhereOrNull((m) => m.id == savedMoshafId) ??
+                                 (reciter.moshafs.isNotEmpty ? reciter.moshafs.first : null);
+        selectedMoshaf.value = moshaf;
+      }
+      filterChapters();
     } catch (e) {
-      errorMessage.value = 'فشل الاتصال بالخادم وتحميل السور: ${e.toString()}';
+      // API and cache both failed — still try to show any downloaded surahs
+      filterChapters();
+      if (filteredChapters.isEmpty) {
+        errorMessage.value = 'لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة.';
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
   void filterChapters() {
-    final query = searchController.text.toLowerCase();
-    if (query.isEmpty) {
-      filteredChapters.assignAll(chapters);
-    } else {
-      filteredChapters.assignAll(chapters.where((chapter) {
-        return chapter.nameSimple.toLowerCase().contains(query) ||
-            chapter.nameArabic.contains(query) ||
-            chapter.translatedName.toLowerCase().contains(query);
-      }).toList());
-    }
+    final query = searchController.text.toLowerCase().trim();
+
+    final list = chapters.where((chapter) {
+      // Find dynamic translation/names in quran_library
+      final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
+      
+      if (quranLibrarySurah != null) {
+        final normalizedQuery = _normalizeArabic(query);
+        final normalizedArabic = _normalizeArabic(quranLibrarySurah.name);
+        final normalizedEnglish = quranLibrarySurah.englishName.toLowerCase();
+        final normalizedTranslation = quranLibrarySurah.englishNameTranslation.toLowerCase();
+        
+        return normalizedArabic.contains(normalizedQuery) ||
+            normalizedEnglish.contains(query) ||
+            normalizedTranslation.contains(query) ||
+            quranLibrarySurah.number.toString() == query;
+      }
+
+      return chapter.nameSimple.toLowerCase().contains(query) ||
+          chapter.nameArabic.contains(query) ||
+          chapter.translatedName.toLowerCase().contains(query) ||
+          chapter.id.toString() == query;
+    }).toList();
+
+    filteredChapters.assignAll(list);
   }
 
+  String _normalizeArabic(String text) {
+    final diacritics = RegExp(r'[\u064B-\u0652\u0670]');
+    String cleaned = text.replaceAll(diacritics, '');
+    cleaned = cleaned
+        .replaceAll('ة', 'ه')
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ى', 'ي')
+        .replaceAll('ئ', 'ي')
+        .replaceAll('ؤ', 'و')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return cleaned;
+  }
+
+  bool isChapterAvailable(Chapter chapter) {
+    final reciter = selectedReciter.value;
+    final moshaf = selectedMoshaf.value;
+    if (reciter == null || moshaf == null) return false;
+    
+    // Always available if it's already downloaded offline
+    if (_storage.isMp3QuranChapterDownloaded(reciter.id, moshaf.id, chapter.id)) {
+      return true;
+    }
+    
+    return moshaf.surahList.contains(chapter.id);
+  }
+
+  bool get isArabic => _storage.getAppLanguage() == 'ar';
+
   bool isChapterDownloaded(Chapter chapter) {
-    final reciterId = _storage.getEffectiveReciterId();
-    return _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
+    final reciter = selectedReciter.value;
+    final moshaf = selectedMoshaf.value;
+    if (reciter == null || moshaf == null) return false;
+    return _storage.isMp3QuranChapterDownloaded(reciter.id, moshaf.id, chapter.id);
   }
 
   Future<void> handleDownload(Chapter chapter) async {
-    final reciterId = _storage.getEffectiveReciterId();
+    final reciter = selectedReciter.value;
+    final moshaf = selectedMoshaf.value;
+    if (reciter == null || moshaf == null) return;
+
     final isDownloaded = isChapterDownloaded(chapter);
 
     if (isDownloaded) {
@@ -93,7 +213,7 @@ class AudioHubController extends GetxController {
       );
 
       if (confirm == true) {
-        await _download.deleteChapter(reciterId, chapter.id);
+        await _download.deleteMp3QuranChapter(reciter.id, moshaf.id, chapter.id);
         filteredChapters.refresh();
         Get.snackbar(
           'حذف الصوت',
@@ -105,10 +225,9 @@ class AudioHubController extends GetxController {
       }
     } else {
       try {
-        final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
-        if (audioUrls.isEmpty) throw Exception('رابط التحميل غير متوفر.');
-
-        await _download.downloadChapter(reciterId, chapter.id, audioUrls);
+        final surahCode = chapter.id.toString().padLeft(3, '0');
+        final url = '${moshaf.server}$surahCode.mp3';
+        await _download.downloadMp3QuranChapter(reciter.id, moshaf.id, chapter.id, url);
         filteredChapters.refresh();
       } catch (e) {
         Get.snackbar(
@@ -124,7 +243,12 @@ class AudioHubController extends GetxController {
 
   Future<void> startBulkDownload() async {
     isBulkDownloading.value = true;
-    final reciterId = _storage.getEffectiveReciterId();
+    final reciter = selectedReciter.value;
+    final moshaf = selectedMoshaf.value;
+    if (reciter == null || moshaf == null) {
+      isBulkDownloading.value = false;
+      return;
+    }
 
     Get.snackbar(
       'تحميل جماعي',
@@ -134,18 +258,19 @@ class AudioHubController extends GetxController {
     );
 
     for (int i = 0; i < chapters.length; i++) {
-      if (!isBulkDownloading.value) break; // Bulk process cancelled
+      if (!isBulkDownloading.value) break;
       final chapter = chapters[i];
-      final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
+      if (!moshaf.surahList.contains(chapter.id)) continue;
+
+      final isDownloaded = _storage.isMp3QuranChapterDownloaded(reciter.id, moshaf.id, chapter.id);
 
       if (!isDownloaded) {
         bulkDownloadId.value = chapter.id;
 
         try {
-          final audioUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
-          if (audioUrls.isNotEmpty) {
-            await _download.downloadChapter(reciterId, chapter.id, audioUrls);
-          }
+          final surahCode = chapter.id.toString().padLeft(3, '0');
+          final url = '${moshaf.server}$surahCode.mp3';
+          await _download.downloadMp3QuranChapter(reciter.id, moshaf.id, chapter.id, url);
         } catch (e) {
           debugPrint('Bulk download error for chapter ${chapter.id}: $e');
         }
@@ -200,12 +325,15 @@ class AudioHubController extends GetxController {
     );
 
     if (confirm == true) {
-      final reciterId = _storage.getEffectiveReciterId();
+      final reciter = selectedReciter.value;
+      final moshaf = selectedMoshaf.value;
+      if (reciter == null || moshaf == null) return;
+
       isLoading.value = true;
 
       for (var chapter in chapters) {
-        if (_storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount)) {
-          await _download.deleteChapter(reciterId, chapter.id);
+        if (_storage.isMp3QuranChapterDownloaded(reciter.id, moshaf.id, chapter.id)) {
+          await _download.deleteMp3QuranChapter(reciter.id, moshaf.id, chapter.id);
         }
       }
 
@@ -222,62 +350,104 @@ class AudioHubController extends GetxController {
   }
 
   Future<void> playSurah(Chapter chapter) async {
-    final reciterId = _storage.getEffectiveReciterId();
-    final isDownloaded = _storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
+    final reciter = selectedReciter.value;
+    final moshaf = selectedMoshaf.value;
+    if (reciter == null || moshaf == null) return;
+
+    final isDownloaded = _storage.isMp3QuranChapterDownloaded(reciter.id, moshaf.id, chapter.id);
     List<String> audioPathsOrUrls = [];
 
     if (isDownloaded) {
-      final dirPath = _storage.getDownloadedAudioDirectory(reciterId, chapter.id);
+      final dirPath = _storage.getMp3QuranDownloadedAudioDirectory(reciter.id, moshaf.id, chapter.id);
       if (dirPath != null && Directory(dirPath).existsSync()) {
-        audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
+        final files = Directory(dirPath).listSync().where((f) => f.path.endsWith('.mp3')).toList();
+        if (files.isNotEmpty) {
+          audioPathsOrUrls = [files.first.path];
+        }
       }
     }
 
     if (audioPathsOrUrls.isEmpty) {
-      try {
-        audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, chapter.id);
-      } catch (e) {
-        Get.snackbar(
-          'فشل تشغيل الصوت',
-          'فشل تشغيل الصوت: ${e.toString()}',
-          backgroundColor: Colors.red[800],
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-        );
-        return;
-      }
+      final surahCode = chapter.id.toString().padLeft(3, '0');
+      audioPathsOrUrls = ['${moshaf.server}$surahCode.mp3'];
     }
 
     try {
-      await _audio.playSurah(chapter, audioPathsOrUrls);
+      _audio.onChapterFinished = _playNextChapter;
+      await _audio.playSurah(chapter, audioPathsOrUrls, clearCompletionCallback: false);
     } catch (e) {
       Get.snackbar(
-        'فشل تشغيل الصوت',
-        'فشل تشغيل الصوت: ${e.toString()}',
-        backgroundColor: Colors.red[800],
+        'خطأ في تشغيل الصوت',
+        'فشل تشغيل سورة ${chapter.nameSimple}. سيتم الانتقال تلقائيًا للسورة التالية...',
+        backgroundColor: Colors.orange[900],
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
       );
+
+      // Auto-skip to next surah if there are other surahs in the list
+      if (filteredChapters.length > 1) {
+        Future.delayed(const Duration(seconds: 4), () {
+          // Only skip if the callback is still active and audio is not playing
+          if (_audio.onChapterFinished == _playNextChapter && !_audio.isPlaying.value) {
+            _playNextChapter(failedChapterId: chapter.id);
+          }
+        });
+      }
     }
+  }
+
+  Future<void> _playNextChapter({int? failedChapterId}) async {
+    final current = _audio.activeChapter.value ?? 
+                    (failedChapterId != null ? chapters.firstWhereOrNull((c) => c.id == failedChapterId) : null);
+    if (current == null || filteredChapters.isEmpty) return;
+
+    // Filter out the available chapters in the current list
+    final availableFiltered = filteredChapters.where((c) => isChapterAvailable(c)).toList();
+    if (availableFiltered.isEmpty) return;
+
+    int currentIndex = availableFiltered.indexWhere((c) => c.id == current.id);
+    if (currentIndex == -1) {
+      // Fallback: try finding in all chapters
+      final availableAll = chapters.where((c) => isChapterAvailable(c)).toList();
+      if (availableAll.isEmpty) return;
+      
+      currentIndex = availableAll.indexWhere((c) => c.id == current.id);
+      if (currentIndex == -1) {
+        await playSurah(availableAll.first);
+        return;
+      }
+      
+      final nextIndex = (currentIndex + 1) % availableAll.length;
+      await playSurah(availableAll[nextIndex]);
+      return;
+    }
+
+    final nextIndex = (currentIndex + 1) % availableFiltered.length;
+    await playSurah(availableFiltered[nextIndex]);
   }
 
   Future<void> updateReciter(int reciterId) async {
-    await _storage.setSelectedReciterId(reciterId);
-    
-    final currentStyle = _storage.getSelectedStyle();
-    if (reciterId == 10) {
-      await _storage.setSelectedStyle('teacher');
-    } else if (reciterId != 6 && currentStyle == 'teacher') {
-      await _storage.setSelectedStyle('murattal');
-    } else if (reciterId != 6 && reciterId != 2 && reciterId != 9 && currentStyle == 'mujawwad') {
-      await _storage.setSelectedStyle('murattal');
-    }
-    filteredChapters.refresh();
+    final reciter = mp3Reciters.firstWhere((r) => r.id == reciterId);
+    selectedReciter.value = reciter;
+    await _storage.setSelectedMp3ReciterId(reciterId);
+
+    final savedMoshafId = _storage.getSelectedMp3MoshafId(reciterId);
+    final moshaf = reciter.moshafs.firstWhereOrNull((m) => m.id == savedMoshafId) ??
+                   (reciter.moshafs.isNotEmpty ? reciter.moshafs.first : null);
+    selectedMoshaf.value = moshaf;
+
+    filterChapters();
   }
 
-  Future<void> updateStyle(String style) async {
-    await _storage.setSelectedStyle(style);
-    filteredChapters.refresh();
+  Future<void> updateMoshaf(int moshafId) async {
+    final reciter = selectedReciter.value;
+    if (reciter != null) {
+      final moshaf = reciter.moshafs.firstWhere((m) => m.id == moshafId);
+      selectedMoshaf.value = moshaf;
+      await _storage.setSelectedMp3MoshafId(reciter.id, moshafId);
+      filterChapters();
+    }
   }
 
   String get bulkProgressString {
@@ -290,6 +460,9 @@ class AudioHubController extends GetxController {
 
   @override
   void onClose() {
+    if (_audio.onChapterFinished == _playNextChapter) {
+      _audio.onChapterFinished = null;
+    }
     searchController.dispose();
     super.onClose();
   }

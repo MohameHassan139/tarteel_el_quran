@@ -113,10 +113,7 @@ class HifzController extends GetxController {
       List<String> audioPathsOrUrls = [];
 
       if (isDownloaded) {
-        final dirPath = _storage.getDownloadedAudioDirectory(reciterId, chapter.id);
-        if (dirPath != null && Directory(dirPath).existsSync()) {
-          audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
-        }
+        audioPathsOrUrls = _storage.getChapterAudioPathsOrUrls(reciterId, chapter.id, chapter.versesCount);
       } 
       
       if (audioPathsOrUrls.isEmpty) {

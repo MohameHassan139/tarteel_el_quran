@@ -181,3 +181,73 @@ class WardGoal {
     };
   }
 }
+
+class Mp3QuranMoshaf {
+  final int id;
+  final String name;
+  final String server;
+  final int surahTotal;
+  final List<int> surahList;
+
+  Mp3QuranMoshaf({
+    required this.id,
+    required this.name,
+    required this.server,
+    required this.surahTotal,
+    required this.surahList,
+  });
+
+  factory Mp3QuranMoshaf.fromJson(Map<String, dynamic> json) {
+    final rawList = json['surah_list'] as String? ?? '';
+    List<int> surahs = [];
+    if (rawList.isNotEmpty) {
+      surahs = rawList.split(',').map((e) => int.tryParse(e.trim())).whereType<int>().toList();
+    }
+    return Mp3QuranMoshaf(
+      id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '') ?? 0),
+      name: json['name'] as String? ?? '',
+      server: json['server'] as String? ?? '',
+      surahTotal: json['surah_total'] is int ? json['surah_total'] as int : (int.tryParse(json['surah_total']?.toString() ?? '') ?? 0),
+      surahList: surahs,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'server': server,
+      'surah_total': surahTotal,
+      'surah_list': surahList.join(','),
+    };
+  }
+}
+
+class Mp3QuranReciter {
+  final int id;
+  final String name;
+  final List<Mp3QuranMoshaf> moshafs;
+
+  Mp3QuranReciter({
+    required this.id,
+    required this.name,
+    required this.moshafs,
+  });
+
+  factory Mp3QuranReciter.fromJson(Map<String, dynamic> json) {
+    final list = json['moshaf'] as List? ?? [];
+    return Mp3QuranReciter(
+      id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '') ?? 0),
+      name: json['name'] as String? ?? '',
+      moshafs: list.map((e) => Mp3QuranMoshaf.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'moshaf': moshafs.map((e) => e.toJson()).toList(),
+    };
+  }
+}

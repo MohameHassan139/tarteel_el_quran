@@ -110,11 +110,8 @@ class MushafViewController extends GetxController {
       final isDownloaded = storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount);
       
       if (isDownloaded) {
-        final dirPath = storage.getDownloadedAudioDirectory(reciterId, chapter.id);
-        if (dirPath != null && Directory(dirPath).existsSync()) {
-          audioPathsOrUrls = List.generate(chapter.versesCount, (i) => '$dirPath/${i+1}.mp3');
-          return;
-        }
+        audioPathsOrUrls = storage.getChapterAudioPathsOrUrls(reciterId, chapter.id, chapter.versesCount);
+        if (audioPathsOrUrls.isNotEmpty) return;
       }
       
       audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, chapter.id);

@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../core/storage_service.dart';
-import '../../core/download_service.dart';
 import '../shared/widgets/bottom_player.dart';
 import 'audio_hub_controller.dart';
 import '../../core/app_colors.dart';
+import 'package:quran_library/quran_library.dart';
 
 class AudioHubScreen extends GetView<AudioHubController> {
   const AudioHubScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final storage = Get.find<StorageService>();
-    final downloadService = Get.find<DownloadService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -34,87 +31,116 @@ class AudioHubScreen extends GetView<AudioHubController> {
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Obx(() {
-                      final baseReciterId = storage.getSelectedReciterId();
+                      final reciters = controller.mp3Reciters;
+                      final selectedReciter = controller.selectedReciter.value;
+                      final selectedMoshaf = controller.selectedMoshaf.value;
                       final isBulk = controller.isBulkDownloading.value;
                       final progressStr = controller.bulkProgressString;
 
+                      if (reciters.isEmpty ||
+                          selectedReciter == null ||
+                          selectedMoshaf == null) {
+                        return const SizedBox(
+                          height: 100,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        );
+                      }
+
                       return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // Line 1: Reciter dropdown
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
-                                'القارئ والأسلوب:',
+                                'القارئ:',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  DropdownButton<int>(
-                                    value: baseReciterId,
-                                    dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : Colors.black87,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'system-ui',
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(value: 7, child: Text('مشاري العفاسي')),
-                                      DropdownMenuItem(value: 6, child: Text('محمود الحصري')),
-                                      DropdownMenuItem(value: 2, child: Text('عبد الباسط عبد الصمد')),
-                                      DropdownMenuItem(value: 9, child: Text('محمد صديق المنشاوي')),
-                                      DropdownMenuItem(value: 10, child: Text('أيمن سويد (معلّم)')),
-                                      DropdownMenuItem(value: 3, child: Text('عبد الرحمن السديس')),
-                                      DropdownMenuItem(value: 17, child: Text('ماهر المعيقلي')),
-                                      DropdownMenuItem(value: 15, child: Text('علي الحذيفي')),
-                                      DropdownMenuItem(value: 20, child: Text('سعود الشريم')),
-                                      DropdownMenuItem(value: 22, child: Text('أبو بكر الشاطري')),
-                                      DropdownMenuItem(value: 23, child: Text('أحمد العجمي')),
-                                      DropdownMenuItem(value: 11, child: Text('عبد الله بصفر')),
-                                      DropdownMenuItem(value: 14, child: Text('هاني الرفاعي')),
-                                      DropdownMenuItem(value: 16, child: Text('إبراهيم الأخضر')),
-                                      DropdownMenuItem(value: 18, child: Text('محمد أيوب')),
-                                      DropdownMenuItem(value: 19, child: Text('محمد جبريل')),
-                                      DropdownMenuItem(value: 21, child: Text('شهريار پرهيزگار')),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        controller.updateReciter(val);
-                                      }
-                                    },
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButton<int>(
+                                  isExpanded: true,
+                                  value: selectedReciter.id,
+                                  dropdownColor: isDark
+                                      ? AppColors.cardDark
+                                      : Colors.white,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'system-ui',
                                   ),
-                                  if (baseReciterId == 6 || baseReciterId == 2 || baseReciterId == 9) ...[
-                                    const SizedBox(width: 8),
-                                    DropdownButton<String>(
-                                      value: storage.getSelectedStyle() == 'teacher' && baseReciterId != 6 ? 'murattal' : storage.getSelectedStyle(),
-                                      dropdownColor: isDark ? AppColors.cardDark : Colors.white,
-                                      style: TextStyle(
-                                        color: isDark ? Colors.white : Colors.black87,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                                  items: reciters.map((r) {
+                                    return DropdownMenuItem<int>(
+                                      value: r.id,
+                                      child: Text(
+                                        r.name,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      items: baseReciterId == 6
-                                          ? const [
-                                              DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                              DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
-                                              DropdownMenuItem(value: 'teacher', child: Text('معلّم')),
-                                            ]
-                                          : const [
-                                              DropdownMenuItem(value: 'murattal', child: Text('مرتّل')),
-                                              DropdownMenuItem(value: 'mujawwad', child: Text('مجوّد')),
-                                            ],
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          controller.updateStyle(val);
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                ],
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null)
+                                      controller.updateReciter(val);
+                                  },
+                                ),
                               ),
                             ],
                           ),
+
+                          // Line 2: Moshaf dropdown
+                          if (selectedReciter.moshafs.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Text(
+                                  'الرواية:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: DropdownButton<int>(
+                                    isExpanded: true,
+                                    value:
+                                        selectedReciter.moshafs.any(
+                                          (m) => m.id == selectedMoshaf.id,
+                                        )
+                                        ? selectedMoshaf.id
+                                        : selectedReciter.moshafs.first.id,
+                                    dropdownColor: isDark
+                                        ? AppColors.cardDark
+                                        : Colors.white,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    items: selectedReciter.moshafs.map((m) {
+                                      return DropdownMenuItem<int>(
+                                        value: m.id,
+                                        child: Text(
+                                          m.name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null)
+                                        controller.updateMoshaf(val);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -182,7 +208,9 @@ class AudioHubScreen extends GetView<AudioHubController> {
                     );
                   }
 
-                  if (controller.errorMessage.isNotEmpty) {
+                  // If offline AND no downloaded surahs at all — show full error screen
+                  if (controller.errorMessage.isNotEmpty &&
+                      controller.filteredChapters.isEmpty) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
@@ -191,12 +219,16 @@ class AudioHubScreen extends GetView<AudioHubController> {
                           children: [
                             const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
                             const SizedBox(height: 16),
-                            Text(controller.errorMessage.value, style: const TextStyle(color: Colors.grey)),
+                            Text(controller.errorMessage.value,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey)),
                             const SizedBox(height: 20),
                             ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                              onPressed: () => controller.loadChapters(),
-                              child: const Text('إعادة المحاولة', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary),
+                              onPressed: () => controller.loadMp3QuranData(),
+                              child: const Text('إعادة المحاولة',
+                                  style: TextStyle(color: Colors.white)),
                             ),
                           ],
                         ),
@@ -204,7 +236,40 @@ class AudioHubScreen extends GetView<AudioHubController> {
                     );
                   }
 
-                  return ListView.separated(
+                  return Column(
+                    children: [
+                      // Slim offline banner when there's an error but downloaded surahs exist
+                      if (controller.errorMessage.isNotEmpty)
+                        Container(
+                          width: double.infinity,
+                          color: Colors.orange[800],
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.wifi_off,
+                                  color: Colors.white, size: 16),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'أنت غير متصل — تعرض السور المحملة فقط',
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 13),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => controller.loadMp3QuranData(),
+                                child: const Text('إعادة المحاولة',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.separated(
+
                     itemCount: controller.filteredChapters.length,
                     padding: const EdgeInsets.fromLTRB(0, 8, 0, 110), // Room for bottom player
                     separatorBuilder: (context, index) => Divider(
@@ -213,11 +278,35 @@ class AudioHubScreen extends GetView<AudioHubController> {
                     ),
                     itemBuilder: (context, index) {
                       final chapter = controller.filteredChapters[index];
-                      final reciterId = storage.getEffectiveReciterId();
-                      
+                      final isAr = Get.locale?.languageCode == 'ar';
+
                       return Obx(() {
+                        final reciter = controller.selectedReciter.value;
+                        final moshaf = controller.selectedMoshaf.value;
                         final isDownloaded = controller.isChapterDownloaded(chapter);
-                        final isCurrentBulk = controller.isBulkDownloading.value && controller.bulkDownloadId.value == chapter.id;
+                        final isCurrentBulk =
+                            controller.isBulkDownloading.value &&
+                            controller.bulkDownloadId.value == chapter.id;
+                        final isAvailable = controller.isChapterAvailable(chapter);
+
+                        // Read directly from the reactive RxMap so Obx tracks it
+                        final double? progress =
+                            (reciter != null && moshaf != null)
+                            ? controller
+                                  .downloadService
+                                  .activeProgress['mp3quran_${reciter.id}_${moshaf.id}_${chapter.id}']
+                            : null;
+
+                        // Retrieve corresponding surah details from quran_library
+                        final quranLibrarySurah = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == chapter.id);
+
+                        final displayName = isAr
+                            ? (quranLibrarySurah?.name ?? chapter.nameArabic)
+                            : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
+
+                        final displaySubtitle = isAr
+                            ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'مكية' : 'مدنية'} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} آية"
+                            : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount} verses";
 
                         return ListTile(
                           leading: Container(
@@ -237,60 +326,86 @@ class AudioHubScreen extends GetView<AudioHubController> {
                               ),
                             ),
                           ),
-                          title: Row(
-                            children: [
-                              Text(chapter.nameSimple, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 8),
-                              Text(
-                                '(${chapter.versesCount} آيات)',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                              ),
-                            ],
+                          title: Text(
+                            displayName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isAvailable ? null : Colors.grey[600],
+                            ),
                           ),
-                          subtitle: Text(chapter.nameArabic, style: const TextStyle(fontFamily: 'UthmanicHafs', fontSize: 16, color: AppColors.primary)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Listen Play button
-                              IconButton(
-                                icon: const Icon(Icons.play_circle_fill, color: AppColors.primary, size: 30),
-                                onPressed: () => controller.playSurah(chapter),
-                              ),
-                              const SizedBox(width: 8),
-                              // Individual Download Action
-                              Obx(() {
-                                final progress = downloadService.getProgress(reciterId, chapter.id);
-
-                                if (progress != null || isCurrentBulk) {
-                                  return SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      value: progress,
-                                      strokeWidth: 3,
-                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          subtitle: Text(
+                            displaySubtitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isAvailable ? AppColors.primary : Colors.grey[500],
+                            ),
+                          ),
+                          trailing: SizedBox(
+                            width: 110,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (!isAvailable)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                  );
-                                }
-
-                                if (isDownloaded) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                return IconButton(
-                                  icon: const Icon(
-                                    Icons.download_for_offline_outlined,
-                                    color: Colors.grey,
+                                    child: Text(
+                                      isAr ? 'غير متوفر' : 'Unavailable',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                else ...[
+                                  // Play button
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.play_circle_fill,
+                                      color: AppColors.primary,
+                                      size: 30,
+                                    ),
+                                    onPressed: () => controller.playSurah(chapter),
                                   ),
-                                  onPressed: () => controller.handleDownload(chapter),
-                                );
-                              }),
-                            ],
+                                  // Download / progress indicator
+                                  if (progress != null || isCurrentBulk)
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        value: progress,
+                                        strokeWidth: 3,
+                                        valueColor: const AlwaysStoppedAnimation<Color>(
+                                          AppColors.primary,
+                                        ),
+                                      ),
+                                    )
+                                  else if (!isDownloaded)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.download_for_offline_outlined,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () => controller.handleDownload(chapter),
+                                    )
+                                  else
+                                    const SizedBox(width: 24),
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       });
                     },
-                  );
+                        ),  // ListView.separated
+                      ),  // Expanded
+                    ],
+                  );  // Column
                 }),
               ),
             ],

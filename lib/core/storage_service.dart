@@ -153,9 +153,28 @@ class StorageService extends GetxService {
     final dir = Directory(dirPath);
     if (!dir.existsSync()) return false;
     
-    // Check if the directory has the correct number of mp3 files
+    // Check if the directory has the correct number of mp3 files (verse-by-verse) or exactly 1 file (single full-surah file)
     final files = dir.listSync().where((f) => f.path.endsWith('.mp3')).toList();
-    return files.length == versesCount;
+    return files.length == versesCount || files.length == 1;
+  }
+
+  /// Get downloaded audio file path(s) or empty list if not downloaded.
+  /// If it is a single-file download (e.g. from mp3quran.net), it returns a list containing that single file.
+  /// If it is verse-by-verse, it returns a list of files matching the surah verses.
+  List<String> getChapterAudioPathsOrUrls(int reciterId, int chapterId, int versesCount) {
+    final dirPath = getDownloadedAudioDirectory(reciterId, chapterId);
+    if (dirPath != null) {
+      final dir = Directory(dirPath);
+      if (dir.existsSync()) {
+        final files = dir.listSync().where((f) => f.path.endsWith('.mp3')).toList();
+        if (files.length == 1) {
+          return [files.first.path];
+        } else if (files.length == versesCount) {
+          return List.generate(versesCount, (i) => '$dirPath/${i+1}.mp3');
+        }
+      }
+    }
+    return [];
   }
 
   // --- Ward Tracker Box Helpers ---
@@ -213,5 +232,62 @@ class StorageService extends GetxService {
       activeSecondsToday: goal.activeSecondsToday + seconds,
     );
     await saveWardGoal(updated);
+  }
+
+  // --- mp3quran.net Cache & Selection Helpers ---
+
+  List<Mp3QuranReciter>? getCachedMp3QuranReciters() {
+    final rawJson = _quranContentBox.get('mp3quran_reciters') as String?;
+    if (rawJson == null) return null;
+    try {
+      final decoded = jsonDecode(rawJson) as List;
+      return decoded.map((e) => Mp3QuranReciter.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> cacheMp3QuranReciters(List<Mp3QuranReciter> list) async {
+    final rawJson = jsonEncode(list.map((e) => e.toJson()).toList());
+    await _quranContentBox.put('mp3quran_reciters', rawJson);
+  }
+
+  int getSelectedMp3ReciterId() {
+    return _settingsBox.get('selected_mp3_reciter_id', defaultValue: 123) as int; // Default to Alafasy (id 123)
+  }
+
+  Future<void> setSelectedMp3ReciterId(int id) async {
+    await _settingsBox.put('selected_mp3_reciter_id', id);
+  }
+
+  int getSelectedMp3MoshafId(int reciterId) {
+    return _settingsBox.get('selected_mp3_moshaf_id_$reciterId', defaultValue: 0) as int;
+  }
+
+  Future<void> setSelectedMp3MoshafId(int reciterId, int moshafId) async {
+    await _settingsBox.put('selected_mp3_moshaf_id_$reciterId', moshafId);
+  }
+
+  // --- mp3quran.net Download Helpers ---
+
+  String? getMp3QuranDownloadedAudioDirectory(int reciterId, int moshafId, int chapterId) {
+    return _downloadedAudioBox.get('mp3_audio_dir_${reciterId}_${moshafId}_$chapterId') as String?;
+  }
+
+  Future<void> setMp3QuranDownloadedAudioDirectory(int reciterId, int moshafId, int chapterId, String directoryPath) async {
+    await _downloadedAudioBox.put('mp3_audio_dir_${reciterId}_${moshafId}_$chapterId', directoryPath);
+  }
+
+  Future<void> deleteMp3QuranDownloadedAudioDirectory(int reciterId, int moshafId, int chapterId) async {
+    await _downloadedAudioBox.delete('mp3_audio_dir_${reciterId}_${moshafId}_$chapterId');
+  }
+
+  bool isMp3QuranChapterDownloaded(int reciterId, int moshafId, int chapterId) {
+    final dirPath = getMp3QuranDownloadedAudioDirectory(reciterId, moshafId, chapterId);
+    if (dirPath == null) return false;
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) return false;
+    final files = dir.listSync().where((f) => f.path.endsWith('.mp3')).toList();
+    return files.length == 1; // Always a single file download
   }
 }

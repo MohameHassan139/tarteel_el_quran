@@ -100,4 +100,76 @@ class DownloadService extends GetxService {
       activeProgress.refresh();
     }
   }
+
+  /// Download a single full-surah audio file from mp3quran.net.
+  Future<void> downloadMp3QuranChapter(int reciterId, int moshafId, int chapterId, String url) async {
+    final taskKey = 'mp3quran_${reciterId}_${moshafId}_$chapterId';
+    if (activeProgress.containsKey(taskKey)) return; // Already downloading
+
+    activeProgress[taskKey] = 0.0;
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final downloadsDir = Directory('${appDir.path}/audio_downloads/mp3quran_${reciterId}_${moshafId}_$chapterId');
+      
+      if (await downloadsDir.exists()) {
+        await downloadsDir.delete(recursive: true);
+      }
+      await downloadsDir.create(recursive: true);
+
+      final client = http.Client();
+
+      try {
+        final request = http.Request('GET', Uri.parse(url));
+        final response = await client.send(request).timeout(const Duration(seconds: 25));
+
+        final file = File('${downloadsDir.path}/1.mp3');
+        final IOSink sink = file.openWrite();
+        
+        await response.stream.pipe(sink);
+        await sink.flush();
+        await sink.close();
+
+        client.close();
+
+        // Save path to local database
+        await _storageService.setMp3QuranDownloadedAudioDirectory(reciterId, moshafId, chapterId, downloadsDir.path);
+
+        activeProgress.remove(taskKey);
+
+        // Start background download of Tafsirs (non-blocking)
+        unawaited(() async {
+          try {
+            final api = Get.find<ApiService>();
+            await api.fetchAndCacheChapterTafsir(chapterId, identifier: 'ar.muyassar');
+            await api.fetchAndCacheChapterTafsir(chapterId, identifier: 'ar.jalalayn');
+          } catch (_) {}
+        }());
+      } catch (e) {
+        client.close();
+        if (await downloadsDir.exists()) {
+          await downloadsDir.delete(recursive: true);
+        }
+        rethrow;
+      }
+    } catch (e) {
+      activeProgress.remove(taskKey);
+      rethrow;
+    }
+  }
+
+  /// Delete a downloaded mp3quran audio directory from disk and storage metadata.
+  Future<void> deleteMp3QuranChapter(int reciterId, int moshafId, int chapterId) async {
+    final dirPath = _storageService.getMp3QuranDownloadedAudioDirectory(reciterId, moshafId, chapterId);
+    if (dirPath != null) {
+      final dir = Directory(dirPath);
+      if (await dir.exists()) {
+        try {
+          await dir.delete(recursive: true);
+        } catch (_) {}
+      }
+      await _storageService.deleteMp3QuranDownloadedAudioDirectory(reciterId, moshafId, chapterId);
+      activeProgress.refresh();
+    }
+  }
 }

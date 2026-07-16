@@ -170,7 +170,37 @@ class ApiService extends GetxService {
     }
   }
 
-  /// Fetch audio URLs for a chapter.
+  /// Fetch all reciters from mp3quran.net API
+  Future<List<Mp3QuranReciter>> fetchMp3QuranReciters({required String language}) async {
+    final uri = Uri.parse('https://mp3quran.net/api/v3/reciters?language=$language');
+    try {
+      final response = await http.get(
+        uri,
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 25));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final list = data['reciters'] as List? ?? [];
+        final reciters = list.map((e) => Mp3QuranReciter.fromJson(e as Map<String, dynamic>)).toList();
+        
+        // Cache the list locally
+        await _storageService.cacheMp3QuranReciters(reciters);
+        return reciters;
+      } else {
+        throw Exception('Failed to fetch reciters: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Fallback to cache if available
+      final cached = _storageService.getCachedMp3QuranReciters();
+      if (cached != null) {
+        return cached;
+      }
+      rethrow;
+    }
+  }
+
+  /// Fetch audio URLs for a chapter from AlQuran Cloud.
   /// Returns a list of strings representing the audio URL for each ayah.
   Future<List<String>> fetchChapterAudio(int reciterId, int chapterId) async {
     try {

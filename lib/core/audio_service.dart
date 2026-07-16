@@ -46,6 +46,7 @@ class AudioService extends GetxService {
   int _currentVerseRepeatCount = 0;
   int _currentRangeRepeatCount = 0;
   int? _lastTrackedIndex;
+  bool _isCompleted = false;
 
   @override
   void onInit() {
@@ -53,11 +54,20 @@ class AudioService extends GetxService {
     _init();
   }
 
+  Future<void> Function()? onChapterFinished;
+
   void _init() {
     _playerStateSub = _player.playerStateStream.listen((state) {
       isPlaying.value = state.playing;
       isBuffering.value = state.processingState == ProcessingState.buffering ||
                           state.processingState == ProcessingState.loading;
+
+      if (state.processingState == ProcessingState.completed) {
+        if (!_isCompleted) {
+          _isCompleted = true;
+          _handlePlaybackCompleted();
+        }
+      }
     });
 
     _currentIndexSub = _player.currentIndexStream.listen((index) {
@@ -77,12 +87,23 @@ class AudioService extends GetxService {
     });
   }
 
+  void _handlePlaybackCompleted() {
+    if (onChapterFinished != null) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        onChapterFinished?.call();
+      });
+    }
+  }
+
   Chapter? get currentActiveChapterRaw => _activeChapter;
   AudioPlayer get player => _player;
 
   /// Start playing a Surah.
   /// `audioPathsOrUrls` contains the path/URL for each Ayah.
-  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls) async {
+  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true}) async {
+    if (clearCompletionCallback) {
+      onChapterFinished = null;
+    }
     await stop();
     if (audioPathsOrUrls.isEmpty) return;
 
@@ -104,6 +125,7 @@ class AudioService extends GetxService {
 
     try {
       await _player.setAudioSource(playlist, initialIndex: 0, initialPosition: Duration.zero);
+      _isCompleted = false;
       await _player.play();
     } catch (_) {
       rethrow;
@@ -134,6 +156,7 @@ class AudioService extends GetxService {
   }
 
   Future<void> stop() async {
+    _isCompleted = true;
     await _player.stop();
     _activeChapter = null;
     activeChapter.value = null;
