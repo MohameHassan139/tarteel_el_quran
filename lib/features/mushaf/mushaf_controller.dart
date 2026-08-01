@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
@@ -26,12 +27,25 @@ class MushafController extends GetxController {
   }
 
   Future<void> loadChapters() async {
-    isLoading.value = true;
     errorMessage.value = '';
+
+    // Ensure local quran_library core data is fully loaded
+    await QuranCtrl.instance.ensureCoreDataLoaded();
+
+    // Cache-first: show cached chapters instantly with no spinner, then
+    // silently refresh from the network in the background.
+    final cached = _storage.getCachedChapters();
+    if (cached != null && cached.isNotEmpty) {
+      chapters.assignAll(cached);
+      filteredChapters.assignAll(cached);
+      isLoading.value = false;
+      unawaited(_refreshChaptersInBackground());
+      return;
+    }
+
+    // No cache yet (first-ever launch) — block on the network as before.
+    isLoading.value = true;
     try {
-      // Ensure local quran_library core data is fully loaded
-      await QuranCtrl.instance.ensureCoreDataLoaded();
-      
       final list = await _api.fetchChapters();
       chapters.assignAll(list);
       filteredChapters.assignAll(list);
@@ -43,6 +57,16 @@ class MushafController extends GetxController {
           : 'Failed to connect to server and load Surahs: ${e.toString()}';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _refreshChaptersInBackground() async {
+    try {
+      final list = await _api.fetchChapters();
+      chapters.assignAll(list);
+      filterChapters();
+    } catch (_) {
+      // Offline or server error — keep showing the cached list silently.
     }
   }
 

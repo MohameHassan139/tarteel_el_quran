@@ -43,22 +43,13 @@ class MushafViewController extends GetxController {
       _onActiveVerseChanged(key);
     });
 
-    // Listen to manual ayah selection/taps to seek audio
+    // quran_library toggles ayah selection on every long-press (which we use
+    // solely to open the tafsir sheet, see MushafViewScreen._showTafseerSheet).
+    // Clear that selection right away so it doesn't leave a lingering highlight
+    // — long-press must only show tafsir and must NEVER move audio playback.
     _selectedAyahSub = QuranCtrl.instance.selectedAyahsByUnequeNumber.listen((selectedUqs) {
       if (selectedUqs.isNotEmpty) {
-        final uq = selectedUqs.first;
-        try {
-          final ayahModel = QuranCtrl.instance.getAyahByUq(uq);
-          final surahNum = ayahModel.surahNumber ?? chapter.id;
-          final ayahNum = ayahModel.ayahNumber;
-
-          if (surahNum == chapter.id && audioPathsOrUrls.isNotEmpty) {
-            final targetKey = '$surahNum:$ayahNum';
-            audio.seekToVerse(targetKey);
-            // Clear manual selection highlight so it doesn't linger over the active player highlight
-            QuranCtrl.instance.clearSelection();
-          }
-        } catch (_) {}
+        QuranCtrl.instance.clearSelection();
       }
     });
   }
@@ -161,6 +152,36 @@ class MushafViewController extends GetxController {
     audio.stop();
     isRepeatAyah.value = false;
     ayahProgress.value = 0.0;
+  }
+
+  /// Jump to and start playing from a specific ayah number in this chapter.
+  Future<void> startFromAyah(int ayahNumber) async {
+    if (ayahNumber < 1 || ayahNumber > chapter.versesCount) return;
+
+    if (audioPathsOrUrls.isEmpty && _loadAudioFuture != null) {
+      isLoading.value = true;
+      await _loadAudioFuture;
+    }
+
+    if (audioPathsOrUrls.isEmpty) {
+      Get.snackbar('audio'.tr, 'audio_links_offline'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final isSameSurahLoaded = audio.activeChapter.value?.id == chapter.id;
+
+    try {
+      if (isSameSurahLoaded) {
+        await audio.seekToVerse('${chapter.id}:$ayahNumber');
+        if (!audio.isPlaying.value) {
+          await audio.resume();
+        }
+      } else {
+        await audio.playSurah(chapter, audioPathsOrUrls, initialIndex: ayahNumber - 1);
+      }
+    } catch (e) {
+      Get.snackbar('audio_play_failed'.tr, '$e', snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   void previousAyah() {

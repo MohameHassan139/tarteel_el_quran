@@ -144,11 +144,22 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
   /// Start playing a Surah.
   /// `audioPathsOrUrls` contains the path/URL for each Ayah.
-  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true, List<MediaItem>? mediaItems}) async {
+  ///
+  /// [keepSessionAlive] skips the full `stop()` teardown and resets state
+  /// in place instead. Used when auto-advancing to the next track in a
+  /// continuous queue (e.g. Audio Hub), because `stop()` tears down the
+  /// just_audio_background media session/foreground notification, and
+  /// restarting one from a backgrounded/screen-off state can silently fail
+  /// on Android — so the running session must be kept alive across tracks.
+  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true, List<MediaItem>? mediaItems, bool keepSessionAlive = false, int initialIndex = 0}) async {
     if (clearCompletionCallback) {
       onChapterFinished = null;
     }
-    await stop();
+    if (keepSessionAlive) {
+      _resetStateForNewSurah();
+    } else {
+      await stop();
+    }
     if (audioPathsOrUrls.isEmpty) return;
 
     _activeChapter = chapter;
@@ -182,8 +193,10 @@ class AudioService extends GetxService with WidgetsBindingObserver {
       }),
     );
 
+    final safeInitialIndex = initialIndex.clamp(0, audioPathsOrUrls.length - 1);
+
     try {
-      await _player.setAudioSource(playlist, initialIndex: 0, initialPosition: Duration.zero);
+      await _player.setAudioSource(playlist, initialIndex: safeInitialIndex, initialPosition: Duration.zero);
       _isCompleted = false;
       await _player.play();
     } catch (_) {
@@ -344,14 +357,20 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> stop() async {
-    _isCompleted = true;
-    _delayTimer?.cancel();
-    isWaitingDelay.value = false;
-    delayCountdown.value = 0;
+    _resetStateForNewSurah();
     await _player.stop();
     _activeChapter = null;
     activeChapter.value = null;
     activeVerseKey.value = null;
+  }
+
+  /// Resets Dart-side playback bookkeeping without touching the underlying
+  /// player/media session. See [playSurah]'s `keepSessionAlive` for why.
+  void _resetStateForNewSurah() {
+    _isCompleted = true;
+    _delayTimer?.cancel();
+    isWaitingDelay.value = false;
+    delayCountdown.value = 0;
     _loopConfig = null;
     _hifzAudioPathsOrUrls = [];
   }

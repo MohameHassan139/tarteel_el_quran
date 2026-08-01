@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../shared/widgets/bottom_player.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'audio_hub_controller.dart';
 import '../../core/app_colors.dart';
 import 'package:quran_library/quran_library.dart';
@@ -22,6 +23,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
         children: [
           Column(
             children: [
+              const OfflineBanner(),
               // Reciter Info & Bulk Actions
               Padding(
                 padding: const EdgeInsets.all(16.0),

@@ -8,6 +8,76 @@ import '../../core/app_colors.dart';
 class MushafViewScreen extends GetView<MushafViewController> {
   const MushafViewScreen({super.key});
 
+  /// Ask the user for an ayah number, then jump to and start playing from it.
+  void _showStartFromAyahDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final maxAyah = controller.chapter.versesCount;
+    final textController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            void confirm() {
+              final value = int.tryParse(textController.text.trim());
+              if (value == null || value < 1 || value > maxAyah) {
+                setState(() {
+                  errorText = 'ayah_number_invalid'.trParams({'count': '$maxAyah'});
+                });
+                return;
+              }
+              Navigator.pop(dialogContext);
+              controller.startFromAyah(value);
+            }
+
+            return AlertDialog(
+              backgroundColor: AppColors.getCard(isDark),
+              title: Text(
+                'start_from_ayah_title'.tr,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'start_from_ayah_hint'.trParams({'count': '$maxAyah'}),
+                    style: TextStyle(color: isDark ? Colors.grey : Colors.black54),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: textController,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'ayah_number_hint'.tr,
+                      errorText: errorText,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onSubmitted: (_) => confirm(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
+                  onPressed: () => Navigator.pop(dialogContext),
+                ),
+                TextButton(
+                  child: Text('ok'.tr, style: const TextStyle(color: AppColors.primary)),
+                  onPressed: confirm,
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// Build the Verse model on the fly for the tafseer sheet.
   void _showTafseerSheet(BuildContext context, AyahModel ayah) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -275,6 +345,14 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                 onTap: controller.toggleRepeat,
                               );
                             }),
+                            const SizedBox(width: 4),
+
+                            // Start From Ayah
+                            _BarButton(
+                              icon: Icons.format_list_numbered,
+                              enabled: true,
+                              onTap: () => _showStartFromAyahDialog(context),
+                            ),
                           ],
                         ),
                       ],

@@ -6,6 +6,7 @@ import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
 import 'mushaf_controller.dart';
 import '../../core/app_colors.dart';
+import '../shared/widgets/offline_banner.dart';
 
 class MushafScreen extends GetView<MushafController> {
   const MushafScreen({super.key});
@@ -29,6 +30,7 @@ class MushafScreen extends GetView<MushafController> {
       ),
       body: Column(
         children: [
+          const OfflineBanner(),
           // Search Input
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

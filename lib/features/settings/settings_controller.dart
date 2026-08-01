@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/storage_service.dart';
 import '../../core/reminder_service.dart';
 import '../../core/app_colors.dart';
@@ -13,11 +14,48 @@ class SettingsController extends GetxController {
   final RxBool isDarkMode = true.obs;
   final RxString appLanguage = 'ar'.obs;
   final RxBool keepScreenOn = true.obs;
+  final RxBool isBatteryOptimizationIgnored = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     loadSettings();
+    refreshBatteryOptimizationStatus();
+  }
+
+  /// Whether the OS is currently allowed to battery-optimize (i.e. possibly
+  /// kill) this app in the background. Only meaningful on Android.
+  Future<void> refreshBatteryOptimizationStatus() async {
+    try {
+      isBatteryOptimizationIgnored.value =
+          await Permission.ignoreBatteryOptimizations.isGranted;
+    } catch (_) {
+      // Not supported on this platform (iOS/desktop/web) — leave as false.
+    }
+  }
+
+  /// Prompts the user to exempt the app from battery optimization, so the
+  /// audio foreground service and scheduled reminder notifications aren't
+  /// killed by OEM background restrictions.
+  Future<void> requestIgnoreBatteryOptimization() async {
+    try {
+      final status = await Permission.ignoreBatteryOptimizations.request();
+      isBatteryOptimizationIgnored.value = status.isGranted;
+      if (!status.isGranted) {
+        // The system dialog may have been dismissed without granting —
+        // fall back to the app's own battery settings page.
+        await openAppSettings();
+        await refreshBatteryOptimizationStatus();
+      }
+    } catch (_) {
+      Get.snackbar(
+        'battery_optimization_title'.tr,
+        'battery_optimization_unsupported'.tr,
+        backgroundColor: Colors.grey[800],
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   void loadSettings() {

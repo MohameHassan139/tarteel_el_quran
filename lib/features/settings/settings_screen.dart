@@ -130,6 +130,24 @@ class SettingsScreen extends GetView<SettingsController> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
                     ListTile(
+                      title: Text('battery_optimization_title'.tr),
+                      subtitle: Text('battery_optimization_desc'.tr),
+                      trailing: controller.isBatteryOptimizationIgnored.value
+                          ? const Icon(Icons.check_circle, color: AppColors.primary)
+                          : ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              onPressed: controller.requestIgnoreBatteryOptimization,
+                              child: Text('battery_optimization_action'.tr, style: const TextStyle(color: Colors.white)),
+                            ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+
+                    ListTile(
                       title: Text('app_lang'.tr),
                       subtitle: Text(lang == 'ar' ? 'arabic'.tr : 'english'.tr),
                       trailing: SizedBox(

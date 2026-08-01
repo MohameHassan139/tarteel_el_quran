@@ -4,6 +4,7 @@ import 'package:quran_library/quran_library.dart' hide AudioService;
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'core/storage_service.dart';
+import 'core/connectivity_service.dart';
 import 'core/api_service.dart';
 import 'core/download_service.dart';
 import 'core/audio_service.dart';
@@ -16,6 +17,7 @@ import 'core/localization/app_translations.dart';
 
 Future<void> initServices() async {
   await Get.putAsync(() => StorageService().init());
+  await Get.putAsync(() => ConnectivityService().init());
   await Get.putAsync(() => ReminderService().init());
   Get.put(ApiService());
   Get.put(DownloadService());
