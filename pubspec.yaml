@@ -49,6 +49,10 @@ dependencies:
   wakelock_plus: ^1.6.1
   connectivity_plus: ^7.0.0
   permission_handler: ^12.0.1
+  firebase_core: ^4.12.1
+  firebase_auth: ^6.5.6
+  cloud_firestore: ^6.7.1
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

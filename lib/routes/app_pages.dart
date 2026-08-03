@@ -13,6 +13,12 @@ import '../features/settings/settings_binding.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/audio_hub/audio_hub_binding.dart';
 import '../features/audio_hub/audio_hub_screen.dart';
+import '../features/teacher_link/teacher_link_binding.dart';
+import '../features/teacher_link/role_onboarding_screen.dart';
+import '../features/teacher_link/student_profile_screen.dart';
+import '../features/teacher_link/teacher_dashboard_screen.dart';
+import '../features/teacher_link/student_detail_screen.dart';
+import '../features/teacher_link/notifications_inbox_screen.dart';
 
 abstract class AppPages {
   static final routes = [
@@ -50,6 +56,31 @@ abstract class AppPages {
       name: AppRoutes.AUDIO_HUB,
       page: () => const AudioHubScreen(),
       binding: AudioHubBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.TEACHER_LINK_ONBOARDING,
+      page: () => const RoleOnboardingScreen(),
+      binding: RoleOnboardingBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.STUDENT_PROFILE,
+      page: () => const StudentProfileScreen(),
+      binding: StudentProfileBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.TEACHER_DASHBOARD,
+      page: () => const TeacherDashboardScreen(),
+      binding: TeacherDashboardBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.STUDENT_DETAIL,
+      page: () => const StudentDetailScreen(),
+      binding: StudentDetailBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.NOTIFICATIONS_INBOX,
+      page: () => const NotificationsInboxScreen(),
+      binding: NotificationsInboxBinding(),
     ),
   ];
 }

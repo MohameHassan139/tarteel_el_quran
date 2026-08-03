@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isLinkedTeacher(studentUid) {
+      return request.auth.uid in
+        get(/databases/$(database)/documents/quran_students/$(studentUid)).data.linkedTeacherIds;
+    }
+
+    // ---------------- Teachers ----------------
+    match /quran_teachers/{teacherUid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.auth.uid == teacherUid
+                    && request.resource.data.uid == teacherUid;
+      allow update: if isSignedIn()
+                    && request.auth.uid == teacherUid
+                    && request.resource.data.shareCode == resource.data.shareCode; // code is immutable
+      allow delete: if isSignedIn() && request.auth.uid == teacherUid;
+    }
+
+    // ---------------- Share code lookup (no PII) ----------------
+    match /quran_share_codes/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.teacherUid == request.auth.uid
+                    && !exists(/databases/$(database)/documents/quran_share_codes/$(code));
+      allow update, delete: if isSignedIn()
+                             && resource.data.teacherUid == request.auth.uid;
+    }
+
+    // ---------------- Students ----------------
+    match /quran_students/{studentUid} {
+      allow read: if isSignedIn() &&
+                  (request.auth.uid == studentUid || request.auth.uid in resource.data.linkedTeacherIds);
+      allow create: if isSignedIn()
+                    && request.auth.uid == studentUid
+                    && request.resource.data.uid == studentUid
+                    && request.resource.data.linkedTeacherIds is list;
+      allow update: if isSignedIn()
+                    && request.auth.uid == studentUid
+                    && request.resource.data.uid == studentUid;
+      allow delete: if isSignedIn() && request.auth.uid == studentUid;
+
+      match /links/{teacherUid} {
+        allow read, write: if isSignedIn() && request.auth.uid == studentUid;
+      }
+
+      match /sessions/{sessionId} {
+        allow create: if isSignedIn()
+                      && request.auth.uid == studentUid
+                      && request.resource.data.rating is int
+                      && request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+        allow update, delete: if isSignedIn() && request.auth.uid == studentUid;
+        allow read: if isSignedIn() && (
+          request.auth.uid == studentUid ||
+          (isLinkedTeacher(studentUid) && request.auth.uid in resource.data.visibleToTeacherIds)
+        );
+      }
+
+      match /daily_ward/{dateId} {
+        allow write: if isSignedIn() && request.auth.uid == studentUid;
+        allow read: if isSignedIn() && (request.auth.uid == studentUid || isLinkedTeacher(studentUid));
+      }
+
+      match /notes/{noteId} {
+        allow create: if isSignedIn()
+                      && isLinkedTeacher(studentUid)
+                      && request.resource.data.fromTeacherUid == request.auth.uid;
+        allow read: if isSignedIn() && request.auth.uid == studentUid;
+        allow update: if isSignedIn() && request.auth.uid == studentUid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+        allow delete: if isSignedIn() && request.auth.uid == studentUid;
+      }
+    }
+
+    // Default deny everything else (including any pre-existing collections from other apps
+    // sharing this Firebase project).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

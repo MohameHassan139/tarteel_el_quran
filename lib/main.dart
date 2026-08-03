@@ -3,12 +3,15 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'core/storage_service.dart';
 import 'core/connectivity_service.dart';
 import 'core/api_service.dart';
 import 'core/download_service.dart';
 import 'core/audio_service.dart';
 import 'core/reminder_service.dart';
+import 'core/teacher_sync_service.dart';
 import 'core/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'routes/app_pages.dart';
@@ -22,10 +25,15 @@ Future<void> initServices() async {
   Get.put(ApiService());
   Get.put(DownloadService());
   Get.put(AudioService());
+  // Purely local: reads a role flag from Hive. No Firebase Auth/Firestore
+  // call happens until the user explicitly activates student/teacher mode.
+  await Get.putAsync(() => TeacherSyncService().init());
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Loads local Firebase app config only — no network call, no sign-in.
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.tarteel.quran.audio',
     androidNotificationChannelName: 'Quran Playback',

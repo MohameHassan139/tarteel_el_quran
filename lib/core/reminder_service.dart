@@ -9,6 +9,7 @@ class ReminderService extends GetxService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   static const int reminderId = 999;
+  static const String teacherNoteChannelId = 'teacher_note_channel';
 
   Future<ReminderService> init() async {
     // Initialize timezone database
@@ -30,16 +31,25 @@ class ReminderService extends GetxService {
 
     await _notificationsPlugin.initialize(settings: initSettings);
 
-    // Request notification permissions for Android 13+ and iOS
-    _requestAndroidPermissions();
-    _requestIOSPermissions();
+    // Request notification permissions for Android 13+ and iOS. This must be
+    // awaited before scheduling anything below — requestExactAlarmsPermission()
+    // on Android 12+ just opens system Settings and doesn't block until the
+    // user grants it, so scheduleDailyReminder() always re-checks the actual
+    // current permission state itself rather than assuming this succeeded.
+    await _requestAndroidPermissions();
+    await _requestIOSPermissions();
 
     // Automatically reschedule on init (rolls forward the 30 days daily reminder window)
     try {
       final storage = Get.find<StorageService>();
       final goal = storage.getWardGoal();
       await scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
-    } catch (_) {}
+    } catch (e) {
+      // Non-fatal, but keep a trace — silent failures here are exactly why
+      // reminders can appear "broken" with no visible cause.
+      // ignore: avoid_print
+      print('ReminderService: failed to schedule daily reminder on init: $e');
+    }
 
     return this;
   }
@@ -65,9 +75,33 @@ class ReminderService extends GetxService {
     }
   }
 
+  /// Whether exact-time alarms are currently permitted. On Android 12+ this
+  /// requires a one-time user grant in system Settings (requestExactAlarmsPermission
+  /// only opens that screen, it can't wait for the user's answer), so we
+  /// always re-check the live status here rather than assuming a prior
+  /// request succeeded.
+  Future<bool> _canScheduleExact() async {
+    final androidPlugin = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return true; // Not Android (iOS has no such restriction).
+    try {
+      return await androidPlugin.canScheduleExactNotifications() ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Schedule a daily notification at a specific hour and minute for the next 30 days.
   Future<void> scheduleDailyReminder(int hour, int minute) async {
     await cancelReminder(); // Remove any previous schedules
+
+    // Fall back to an inexact (but still daily, still reliable) schedule
+    // instead of throwing when exact-alarm permission hasn't been granted —
+    // the reminder still fires, just within a short OS-chosen window instead
+    // of to-the-minute.
+    final scheduleMode = await _canScheduleExact()
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final storage = Get.find<StorageService>();
     final lang = storage.getAppLanguage();
@@ -156,7 +190,7 @@ class ReminderService extends GetxService {
         body: body,
         scheduledDate: scheduledDate,
         notificationDetails: platformDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
       );
     }
   }
@@ -262,6 +296,39 @@ class ReminderService extends GetxService {
     await _notificationsPlugin.show(
       id: reminderId + 101, // Test Notification ID
       title: '$title (Test)',
+      body: body,
+      notificationDetails: platformDetails,
+    );
+  }
+
+  /// Generic instant notification, used for things that aren't the daily
+  /// ward reminder (e.g. a teacher's note arriving). Only fires while this
+  /// app process is alive — there is no server component sending real push,
+  /// so a fully-closed app will not receive this.
+  Future<void> showInstantNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      teacherNoteChannelId,
+      'Teacher Notes',
+      channelDescription: 'Notifies a student when their teacher sends a note.',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const platformDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await _notificationsPlugin.show(
+      id: id,
+      title: title,
       body: body,
       notificationDetails: platformDetails,
     );

@@ -8,6 +8,7 @@ import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/download_service.dart';
 import '../../core/app_colors.dart';
+import '../../core/teacher_sync_service.dart';
 import '../../models.dart';
 
 class HifzController extends GetxController {
@@ -60,6 +61,8 @@ class HifzController extends GetxController {
   final RxList<Map<String, dynamic>> hifzHistoryList = <Map<String, dynamic>>[].obs;
 
   StreamSubscription? _activeVerseSub;
+  DateTime? _sessionStartedAt;
+  Timer? _liveActivityTimer;
 
   StorageService get storage => _storage;
 
@@ -309,6 +312,7 @@ class HifzController extends GetxController {
     isLoading.value = true;
     isHifzActive.value = true;
     revealedVerseIds.clear();
+    _sessionStartedAt = DateTime.now();
 
     try {
       saveSessionState();
@@ -374,6 +378,7 @@ class HifzController extends GetxController {
 
       // Start play loop (will play when audio finishes buffering)
       await _audio.playHifz(chapter, audioPathsOrUrls, config);
+      _startLiveActivityTimer(chapter, start, end);
     } catch (e) {
       WakelockPlus.disable();
       Get.snackbar('hifz_workspace_error'.tr, 'hifz_workspace_error_desc'.trParams({'error': '${e.toString()}'}), snackPosition: SnackPosition.BOTTOM);
@@ -382,38 +387,83 @@ class HifzController extends GetxController {
     }
   }
 
+  /// Pushes automatic, no-button-needed live progress (current range +
+  /// elapsed time) while a Hifz session is active. Purely additive — it does
+  /// not change what counts as a "completed" session (see saveSessionToHistory,
+  /// only reachable via the explicit finish+rate flow).
+  void _startLiveActivityTimer(Chapter chapter, int start, int end) {
+    _liveActivityTimer?.cancel();
+    if (!Get.isRegistered<TeacherSyncService>()) return;
+    final sync = Get.find<TeacherSyncService>();
+    if (!sync.isStudent) return;
+
+    final label = '${chapter.nameArabic} ($start-$end)';
+    void push() {
+      final elapsed = _sessionStartedAt != null ? DateTime.now().difference(_sessionStartedAt!).inSeconds : 0;
+      unawaited(sync.setLiveActivity(feature: 'hifz', label: label, elapsedSeconds: elapsed));
+    }
+
+    push(); // Immediate first push so the teacher doesn't wait for the first tick.
+    _liveActivityTimer = Timer.periodic(const Duration(seconds: 15), (_) => push());
+  }
+
   void stopHifz() {
     _audio.stop();
     WakelockPlus.disable();
     isHifzActive.value = false;
     currentRecitingVerse.value = null;
     hifzVerses.clear();
+
+    _liveActivityTimer?.cancel();
+    _liveActivityTimer = null;
+    if (Get.isRegistered<TeacherSyncService>()) {
+      final sync = Get.find<TeacherSyncService>();
+      if (sync.isStudent) unawaited(sync.clearLiveActivity());
+    }
   }
 
-  Future<void> finishAndSaveSession(int rating, String notes) async {
-    await saveSessionToHistory(rating, notes);
+  Future<void> finishAndSaveSession(int rating, String notes, {String? shareToTeacherUid}) async {
+    await saveSessionToHistory(rating, notes, shareToTeacherUid: shareToTeacherUid);
     stopHifz();
   }
 
-  Future<void> saveSessionToHistory(int rating, String notes) async {
+  Future<void> saveSessionToHistory(int rating, String notes, {String? shareToTeacherUid}) async {
     final chapter = selectedChapter.value;
     if (chapter == null) return;
-    
+
+    // Capture how far the student actually got, not just the planned range —
+    // must be read before stopHifz() resets the audio engine's Hifz state.
+    final reachedAyah = _audio.hifzReachedAyahNumber;
+    final reachedEndAyah = (reachedAyah ?? endAyah.value).clamp(startAyah.value, endAyah.value);
+    final durationSeconds = _sessionStartedAt != null ? DateTime.now().difference(_sessionStartedAt!).inSeconds : 0;
+
     final newEntry = {
+      'id': '${chapter.id}_${startAyah.value}_${DateTime.now().millisecondsSinceEpoch}',
       'chapterId': chapter.id,
       'chapterName': chapter.nameArabic,
       'startAyah': startAyah.value,
       'endAyah': endAyah.value,
+      'reachedEndAyah': reachedEndAyah,
+      'durationSeconds': durationSeconds,
+      'verseRepetitions': verseRepetitions.value,
+      'rangeRepetitions': rangeRepetitions.value,
       'date': DateTime.now().toIso8601String(),
       'rating': rating,
       'notes': notes,
       'reciterName': getReciterName(selectedReciterId.value),
     };
-    
+
     final history = List<Map<String, dynamic>>.from(hifzHistoryList);
     history.insert(0, newEntry); // Add to the top
     hifzHistoryList.assignAll(history);
     await _storage.saveHifzHistory(history);
+
+    if (Get.isRegistered<TeacherSyncService>()) {
+      final sync = Get.find<TeacherSyncService>();
+      if (sync.isStudent) {
+        unawaited(sync.syncHifzSession(newEntry, shareToTeacherUid: shareToTeacherUid));
+      }
+    }
   }
 
   Future<void> deleteHistoryItem(int index) async {
@@ -504,6 +554,7 @@ class HifzController extends GetxController {
   void onClose() {
     WakelockPlus.disable();
     _activeVerseSub?.cancel();
+    _liveActivityTimer?.cancel();
     super.onClose();
   }
 }

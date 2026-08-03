@@ -330,5 +330,125 @@ class StorageService extends GetxService {
   Future<void> saveHifzHistory(List<Map<String, dynamic>> history) async {
     await _settingsBox.put('hifz_history', jsonEncode(history));
   }
+
+  // --- Teacher/Student linking (local-only bookkeeping; cloud data lives in Firestore) ---
+
+  /// '' | 'student' | 'teacher' | 'both'. Reading/writing this never touches the network.
+  String getTeacherLinkRole() {
+    return _settingsBox.get('teacher_link_role', defaultValue: '') as String;
+  }
+
+  Future<void> setTeacherLinkRole(String role) async {
+    await _settingsBox.put('teacher_link_role', role);
+  }
+
+  /// IDs of local Hifz history entries already mirrored to Firestore, so a
+  /// session is never uploaded twice.
+  Set<String> getSyncedHifzSessionIds() {
+    final rawJson = _settingsBox.get('teacher_link_synced_session_ids') as String?;
+    if (rawJson == null) return {};
+    try {
+      final decoded = jsonDecode(rawJson) as List;
+      return decoded.map((e) => e as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> addSyncedHifzSessionId(String sessionId) async {
+    final ids = getSyncedHifzSessionIds()..add(sessionId);
+    await _settingsBox.put('teacher_link_synced_session_ids', jsonEncode(ids.toList()));
+  }
+
+  bool isWardBackfillDone() {
+    return _settingsBox.get('teacher_link_ward_backfill_done', defaultValue: false) as bool;
+  }
+
+  Future<void> setWardBackfillDone(bool done) async {
+    await _settingsBox.put('teacher_link_ward_backfill_done', done);
+  }
+
+  /// Local cache of the student's own profile, so it displays instantly and
+  /// survives offline even though the source of truth is Firestore.
+  Map<String, dynamic>? getStudentProfileCache() {
+    final rawJson = _settingsBox.get('teacher_link_student_profile') as String?;
+    if (rawJson == null) return null;
+    try {
+      return jsonDecode(rawJson) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setStudentProfileCache(Map<String, dynamic> profile) async {
+    await _settingsBox.put('teacher_link_student_profile', jsonEncode(profile));
+  }
+
+  /// Local cache of linked teachers (id + display name), used to populate the
+  /// "share this session with" picker without a network round trip.
+  List<Map<String, dynamic>> getLinkedTeachersCache() {
+    final rawJson = _settingsBox.get('teacher_link_linked_teachers') as String?;
+    if (rawJson == null) return [];
+    try {
+      final decoded = jsonDecode(rawJson) as List;
+      return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> setLinkedTeachersCache(List<Map<String, dynamic>> teachers) async {
+    await _settingsBox.put('teacher_link_linked_teachers', jsonEncode(teachers));
+  }
+
+  /// Local cache of this device's own teacher profile (display name + share code).
+  Map<String, dynamic>? getTeacherProfileCache() {
+    final rawJson = _settingsBox.get('teacher_link_teacher_profile') as String?;
+    if (rawJson == null) return null;
+    try {
+      return jsonDecode(rawJson) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setTeacherProfileCache(Map<String, dynamic> profile) async {
+    await _settingsBox.put('teacher_link_teacher_profile', jsonEncode(profile));
+  }
+
+  /// Per-day Audio Hub listening seconds (date -> seconds), same shape as
+  /// getWardHistory() but independent of it since Audio Hub listening has no
+  /// daily-goal concept — just a running per-day counter.
+  Map<String, int> getAudioDailySeconds() {
+    final rawJson = _settingsBox.get('audio_listening_daily') as String?;
+    if (rawJson == null) return {};
+    try {
+      final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value as int));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> logAudioListeningSeconds(int seconds) async {
+    final today = _todayDateString();
+    final map = getAudioDailySeconds();
+    map[today] = (map[today] ?? 0) + seconds;
+    await _settingsBox.put('audio_listening_daily', jsonEncode(map));
+  }
+
+  String _todayDateString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> clearTeacherLinkLocalData() async {
+    await _settingsBox.delete('teacher_link_role');
+    await _settingsBox.delete('teacher_link_synced_session_ids');
+    await _settingsBox.delete('teacher_link_ward_backfill_done');
+    await _settingsBox.delete('teacher_link_student_profile');
+    await _settingsBox.delete('teacher_link_linked_teachers');
+    await _settingsBox.delete('teacher_link_teacher_profile');
+  }
 }
 

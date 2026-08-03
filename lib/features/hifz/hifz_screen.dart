@@ -5,6 +5,8 @@ import 'package:quran_library/quran_library.dart' hide AudioService;
 import '../../models.dart';
 import 'hifz_controller.dart';
 import '../../core/app_colors.dart';
+import '../../core/teacher_sync_service.dart';
+import '../teacher_link/teacher_link_models.dart';
 
 class HifzScreen extends GetView<HifzController> {
   const HifzScreen({super.key});
@@ -1279,6 +1281,9 @@ class HifzScreen extends GetView<HifzController> {
   void _showFinishDialog(BuildContext context) {
     int selectedRating = 5;
     final notesController = TextEditingController();
+    String? selectedTeacherUid;
+    final teacherSync = Get.isRegistered<TeacherSyncService>() ? Get.find<TeacherSyncService>() : null;
+    final linkedTeachers = teacherSync?.linkedTeachers ?? <LinkedTeacher>[].obs;
 
     showDialog(
       context: context,
@@ -1333,6 +1338,30 @@ class HifzScreen extends GetView<HifzController> {
                         ),
                       ),
                     ),
+                    if (linkedTeachers.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text('teacher_link_share_session_with'.tr, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: Text('teacher_link_private'.tr),
+                            selected: selectedTeacherUid == null,
+                            onSelected: (_) => setState(() => selectedTeacherUid = null),
+                          ),
+                          ...linkedTeachers.map((t) => ChoiceChip(
+                                label: Text(t.teacherDisplayName.isEmpty ? 'reciter_unknown'.tr : t.teacherDisplayName),
+                                selected: selectedTeacherUid == t.teacherUid,
+                                onSelected: (_) => setState(() => selectedTeacherUid = t.teacherUid),
+                              )),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1348,7 +1377,7 @@ class HifzScreen extends GetView<HifzController> {
                   ),
                   child: Text('save_and_close'.tr, style: const TextStyle(color: Colors.white)),
                   onPressed: () {
-                    controller.finishAndSaveSession(selectedRating, notesController.text);
+                    controller.finishAndSaveSession(selectedRating, notesController.text, shareToTeacherUid: selectedTeacherUid);
                     Navigator.pop(context);
                   },
                 ),

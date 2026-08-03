@@ -6,6 +6,7 @@ import '../../core/audio_service.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/reminder_service.dart';
+import '../../core/teacher_sync_service.dart';
 import '../../models.dart';
 
 class MushafViewController extends GetxController {
@@ -54,6 +55,8 @@ class MushafViewController extends GetxController {
     });
   }
 
+  int _stopwatchTickCount = 0;
+
   void _startStopwatch() {
     _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       final goalBefore = storage.getWardGoal();
@@ -69,7 +72,19 @@ class MushafViewController extends GetxController {
         // Goal achieved just now! Trigger celebratory instant notification
         Get.find<ReminderService>().triggerCelebrationNotification();
       }
+
+      _stopwatchTickCount++;
+      if (_stopwatchTickCount % 30 == 0) {
+        _maybeSyncWardToday();
+      }
     });
+  }
+
+  void _maybeSyncWardToday() {
+    if (!Get.isRegistered<TeacherSyncService>()) return;
+    final sync = Get.find<TeacherSyncService>();
+    if (!sync.isStudent) return;
+    unawaited(sync.syncTodayActivity());
   }
 
   void _onActiveVerseChanged(String? key) {
@@ -222,6 +237,7 @@ class MushafViewController extends GetxController {
     try {
       final goal = storage.getWardGoal();
       Get.find<ReminderService>().scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
+      _maybeSyncWardToday();
     } catch (_) {}
 
     super.onClose();

@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:get/get.dart';
 import 'storage_service.dart';
+import 'teacher_sync_service.dart';
 import '../models.dart';
 
 class HifzLoopConfig {
@@ -65,11 +66,25 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
   bool get isHifzMode => _loopConfig != null;
 
+  // Audio Hub listening-time tracking (see _startListeningTicker below).
+  Timer? _listeningTimer;
+  int _audioListeningElapsedSeconds = 0;
+  bool _audioLiveActivityActive = false;
+
+  /// The ayah number (1-based, within the active Hifz range) the student
+  /// actually reached — not the planned end. Must be read before `stop()`
+  /// resets the internal Hifz state (i.e. before `stopHifz()` is called).
+  int? get hifzReachedAyahNumber {
+    if (!isHifzMode || _hifzAudioPathsOrUrls.isEmpty) return null;
+    return _hifzCurrentIndex + 1;
+  }
+
   @override
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
     _init();
+    _startListeningTicker();
   }
 
   @override
@@ -80,8 +95,48 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _delayTimer?.cancel();
+    _listeningTimer?.cancel();
     _player.dispose();
     super.onClose();
+  }
+
+  /// Tracks Audio Hub listening time and live activity. `onChapterFinished`
+  /// is only ever non-null for continuous Audio Hub playback (see
+  /// AudioHubController.playSurah / didChangeAppLifecycleState above), which
+  /// is what distinguishes it from a single Mushaf surah or a Hifz loop.
+  /// Lives on this permanent singleton (not AudioHubController, which gets
+  /// disposed when that screen closes) so it keeps counting in the background.
+  void _startListeningTicker() {
+    _listeningTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final isAudioHubListening = isPlaying.value && onChapterFinished != null;
+
+      if (!isAudioHubListening) {
+        if (_audioLiveActivityActive) {
+          _audioLiveActivityActive = false;
+          _audioListeningElapsedSeconds = 0;
+          if (Get.isRegistered<TeacherSyncService>()) {
+            final sync = Get.find<TeacherSyncService>();
+            if (sync.isStudent) unawaited(sync.clearLiveActivity());
+          }
+        }
+        return;
+      }
+
+      _audioListeningElapsedSeconds++;
+      unawaited(_storageService.logAudioListeningSeconds(1));
+
+      if (_audioListeningElapsedSeconds % 15 != 0) return;
+      _audioLiveActivityActive = true;
+      if (!Get.isRegistered<TeacherSyncService>()) return;
+      final sync = Get.find<TeacherSyncService>();
+      if (!sync.isStudent) return;
+      unawaited(sync.setLiveActivity(
+        feature: 'audio',
+        label: _activeChapter?.nameArabic ?? '',
+        elapsedSeconds: _audioListeningElapsedSeconds,
+      ));
+      unawaited(sync.syncTodayActivity());
+    });
   }
 
   @override
