@@ -100,9 +100,12 @@ class StudentProfileController extends GetxController {
         ],
       ),
     );
-    if (confirm == true) {
-      await sync.unlinkTeacher(teacherUid);
+    if (confirm != true) return;
+    if (!_connectivity.isOnline.value) {
+      Get.snackbar('teacher_link_error'.tr, 'teacher_link_needs_internet'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
     }
+    await sync.unlinkTeacher(teacherUid);
   }
 
   Future<void> deleteCloudData() async {
@@ -120,21 +123,25 @@ class StudentProfileController extends GetxController {
         ],
       ),
     );
-    if (confirm == true) {
-      await sync.deactivateAndDeleteCloudData();
-      nameController.clear();
-      ageController.clear();
-      phoneController.clear();
-      whatsappController.clear();
-      fatherPhoneController.clear();
-      Get.snackbar(
-        'teacher_link_delete_data_title'.tr,
-        'teacher_link_delete_data_done'.tr,
-        backgroundColor: Colors.grey[800],
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+    if (confirm != true) return;
+    if (!_connectivity.isOnline.value) {
+      Get.snackbar('teacher_link_error'.tr, 'teacher_link_needs_internet'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
     }
+
+    await sync.deactivateAndDeleteCloudData();
+    nameController.clear();
+    ageController.clear();
+    phoneController.clear();
+    whatsappController.clear();
+    fatherPhoneController.clear();
+    Get.snackbar(
+      'teacher_link_delete_data_title'.tr,
+      'teacher_link_delete_data_done'.tr,
+      backgroundColor: Colors.grey[800],
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   @override

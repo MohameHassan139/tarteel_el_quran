@@ -3,13 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
+import '../../core/connectivity_service.dart';
 import '../../core/teacher_sync_service.dart';
 import 'teacher_link_models.dart';
 
-enum TimeRange { week, month, all }
+enum TimeRange { day, week, month, all }
 
 class StudentDetailController extends GetxController {
   final TeacherSyncService sync = Get.find<TeacherSyncService>();
+  final ConnectivityService _connectivity = Get.find<ConnectivityService>();
 
   late final String studentUid;
   late final String studentName;
@@ -70,6 +72,8 @@ class StudentDetailController extends GetxController {
 
   int get _rangeDays {
     switch (selectedRange.value) {
+      case TimeRange.day:
+        return 1;
       case TimeRange.week:
         return 7;
       case TimeRange.month:
@@ -80,7 +84,11 @@ class StudentDetailController extends GetxController {
   }
 
   bool _withinRange(DateTime date) {
-    final cutoff = DateTime.now().subtract(Duration(days: _rangeDays));
+    final now = DateTime.now();
+    if (selectedRange.value == TimeRange.day) {
+      return date.year == now.year && date.month == now.month && date.day == now.day;
+    }
+    final cutoff = now.subtract(Duration(days: _rangeDays));
     return date.isAfter(cutoff);
   }
 
@@ -115,6 +123,10 @@ class StudentDetailController extends GetxController {
     final teacherUid = sync.teacherUid.value;
     final teacherName = sync.teacherProfile.value?.displayName ?? '';
     if (teacherUid == null) return;
+    if (!_connectivity.isOnline.value) {
+      Get.snackbar('teacher_link_error'.tr, 'teacher_link_needs_internet'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
 
     isSendingNote.value = true;
     try {

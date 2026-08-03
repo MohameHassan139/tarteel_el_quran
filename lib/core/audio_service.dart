@@ -5,6 +5,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:get/get.dart';
 import 'storage_service.dart';
 import 'teacher_sync_service.dart';
+import 'reminder_service.dart';
 import '../models.dart';
 
 class HifzLoopConfig {
@@ -124,6 +125,9 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
       _audioListeningElapsedSeconds++;
       unawaited(_storageService.logAudioListeningSeconds(1));
+      if (Get.isRegistered<ReminderService>()) {
+        unawaited(Get.find<ReminderService>().logWardProgress(1));
+      }
 
       if (_audioListeningElapsedSeconds % 15 != 0) return;
       _audioLiveActivityActive = true;

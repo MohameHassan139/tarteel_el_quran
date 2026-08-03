@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
 import '../../routes/app_routes.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'teacher_dashboard_controller.dart';
 
 class TeacherDashboardScreen extends GetView<TeacherDashboardController> {
@@ -17,12 +18,19 @@ class TeacherDashboardScreen extends GetView<TeacherDashboardController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Obx(() {
-        if (!controller.sync.isTeacher) {
-          return _buildActivationForm(context, isDark);
-        }
-        return _buildDashboard(context, isDark);
-      }),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: Obx(() {
+              if (!controller.sync.isTeacher) {
+                return _buildActivationForm(context, isDark);
+              }
+              return _buildDashboard(context, isDark);
+            }),
+          ),
+        ],
+      ),
     );
   }
 

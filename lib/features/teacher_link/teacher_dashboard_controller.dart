@@ -84,12 +84,16 @@ class TeacherDashboardController extends GetxController {
         ],
       ),
     );
-    if (confirm == true) {
-      await _studentsSub?.cancel();
-      students.clear();
-      await sync.deactivateTeacherMode();
-      nameController.clear();
+    if (confirm != true) return;
+    if (!_connectivity.isOnline.value) {
+      Get.snackbar('teacher_link_error'.tr, 'teacher_link_needs_internet'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
     }
+
+    await _studentsSub?.cancel();
+    students.clear();
+    await sync.deactivateTeacherMode();
+    nameController.clear();
   }
 
   @override

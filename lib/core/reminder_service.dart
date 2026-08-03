@@ -301,6 +301,27 @@ class ReminderService extends GetxService {
     );
   }
 
+  /// Logs N seconds of activity toward the daily ward goal — from ANY
+  /// feature (Mushaf reading, Hifz practice, Audio Hub listening), not just
+  /// Mushaf — and fires the celebration notification if this call is what
+  /// pushes today's total across the target. Centralized here so all three
+  /// callers share one goal-crossing check instead of duplicating it.
+  Future<void> logWardProgress(int seconds) async {
+    final storage = Get.find<StorageService>();
+    final goalBefore = storage.getWardGoal();
+    final targetSeconds = goalBefore.targetMinutes * 60;
+    final beforeSeconds = goalBefore.activeSecondsToday;
+
+    await storage.logReadingSeconds(seconds);
+
+    final goalAfter = storage.getWardGoal();
+    final afterSeconds = goalAfter.activeSecondsToday;
+
+    if (beforeSeconds < targetSeconds && afterSeconds >= targetSeconds) {
+      await triggerCelebrationNotification();
+    }
+  }
+
   /// Generic instant notification, used for things that aren't the daily
   /// ward reminder (e.g. a teacher's note arriving). Only fires while this
   /// app process is alive — there is no server component sending real push,

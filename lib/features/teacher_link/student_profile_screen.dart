@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'student_profile_controller.dart';
 
 class StudentProfileScreen extends GetView<StudentProfileController> {
@@ -16,7 +17,11 @@ class StudentProfileScreen extends GetView<StudentProfileController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,6 +126,9 @@ class StudentProfileScreen extends GetView<StudentProfileController> {
             }),
           ],
         ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'notifications_inbox_controller.dart';
 
 class NotificationsInboxScreen extends GetView<NotificationsInboxController> {
@@ -21,7 +22,10 @@ class NotificationsInboxScreen extends GetView<NotificationsInboxController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Obx(() {
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: Obx(() {
         if (controller.notes.isEmpty) {
           return Center(
             child: Padding(
@@ -83,7 +87,9 @@ class NotificationsInboxScreen extends GetView<NotificationsInboxController> {
             );
           },
         );
-      }),
+      })),
+        ],
+      ),
     );
   }
 }

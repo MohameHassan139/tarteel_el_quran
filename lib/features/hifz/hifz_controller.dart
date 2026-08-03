@@ -9,6 +9,7 @@ import '../../core/storage_service.dart';
 import '../../core/download_service.dart';
 import '../../core/app_colors.dart';
 import '../../core/teacher_sync_service.dart';
+import '../../core/reminder_service.dart';
 import '../../models.dart';
 
 class HifzController extends GetxController {
@@ -63,6 +64,7 @@ class HifzController extends GetxController {
   StreamSubscription? _activeVerseSub;
   DateTime? _sessionStartedAt;
   Timer? _liveActivityTimer;
+  Timer? _wardStopwatchTimer;
 
   StorageService get storage => _storage;
 
@@ -205,6 +207,28 @@ class HifzController extends GetxController {
     if (endAyah.value > startAyah.value) {
       endAyah.value--;
     }
+  }
+
+  /// Manual entry for the start ayah, with validation. Returns null on
+  /// success, or a translation key describing why the value was rejected.
+  String? setStartAyah(int value) {
+    final chapter = selectedChapter.value;
+    if (chapter == null) return 'invalid_range_desc';
+    if (value < 1 || value > chapter.versesCount) return 'hifz_ayah_out_of_range';
+    if (value > endAyah.value) return 'hifz_start_after_end';
+    startAyah.value = value;
+    return null;
+  }
+
+  /// Manual entry for the end ayah, with validation. Returns null on
+  /// success, or a translation key describing why the value was rejected.
+  String? setEndAyah(int value) {
+    final chapter = selectedChapter.value;
+    if (chapter == null) return 'invalid_range_desc';
+    if (value < 1 || value > chapter.versesCount) return 'hifz_ayah_out_of_range';
+    if (value < startAyah.value) return 'hifz_end_before_start';
+    endAyah.value = value;
+    return null;
   }
 
   void toggleVerseReveal(int id) {
@@ -379,6 +403,7 @@ class HifzController extends GetxController {
       // Start play loop (will play when audio finishes buffering)
       await _audio.playHifz(chapter, audioPathsOrUrls, config);
       _startLiveActivityTimer(chapter, start, end);
+      _startWardStopwatch();
     } catch (e) {
       WakelockPlus.disable();
       Get.snackbar('hifz_workspace_error'.tr, 'hifz_workspace_error_desc'.trParams({'error': '${e.toString()}'}), snackPosition: SnackPosition.BOTTOM);
@@ -407,6 +432,15 @@ class HifzController extends GetxController {
     _liveActivityTimer = Timer.periodic(const Duration(seconds: 15), (_) => push());
   }
 
+  /// Counts Hifz practice time toward the daily ward goal, same as Mushaf
+  /// reading time — the goal now reflects activity across every feature.
+  void _startWardStopwatch() {
+    _wardStopwatchTimer?.cancel();
+    _wardStopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      Get.find<ReminderService>().logWardProgress(1);
+    });
+  }
+
   void stopHifz() {
     _audio.stop();
     WakelockPlus.disable();
@@ -416,6 +450,8 @@ class HifzController extends GetxController {
 
     _liveActivityTimer?.cancel();
     _liveActivityTimer = null;
+    _wardStopwatchTimer?.cancel();
+    _wardStopwatchTimer = null;
     if (Get.isRegistered<TeacherSyncService>()) {
       final sync = Get.find<TeacherSyncService>();
       if (sync.isStudent) unawaited(sync.clearLiveActivity());
@@ -555,6 +591,7 @@ class HifzController extends GetxController {
     WakelockPlus.disable();
     _activeVerseSub?.cancel();
     _liveActivityTimer?.cancel();
+    _wardStopwatchTimer?.cancel();
     super.onClose();
   }
 }

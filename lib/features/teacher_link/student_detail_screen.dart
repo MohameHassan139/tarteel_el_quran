@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'student_detail_controller.dart';
 import 'widgets/daily_time_bar_chart.dart';
 import 'widgets/streak_heatmap.dart';
@@ -19,7 +20,11 @@ class StudentDetailScreen extends GetView<StudentDetailController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,13 +76,17 @@ class StudentDetailScreen extends GetView<StudentDetailController> {
                   children: [
                     Text('teacher_link_consistency_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 14),
-                    Obx(() => StreakHeatmap(dailyActivity: controller.dailyWard.value)),
+                    Obx(() => StreakHeatmap(dailyActivity: Map.of(controller.dailyWard))),
                     const SizedBox(height: 20),
                     Text('teacher_link_daily_time_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 8),
                     Obx(() => DailyTimeBarChart(
-                          dailyActivity: controller.dailyWard.value,
-                          daysToShow: controller.selectedRange.value == TimeRange.month ? 30 : 14,
+                          dailyActivity: Map.of(controller.dailyWard),
+                          daysToShow: switch (controller.selectedRange.value) {
+                            TimeRange.day || TimeRange.week => 14,
+                            TimeRange.month => 30,
+                            TimeRange.all => 90,
+                          },
                         )),
                   ],
                 ),
@@ -143,6 +152,9 @@ class StudentDetailScreen extends GetView<StudentDetailController> {
             }),
           ],
         ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -191,6 +203,7 @@ class StudentDetailScreen extends GetView<StudentDetailController> {
   Widget _buildRangeSelector(bool isDark) {
     return Obx(() => SegmentedButton<TimeRange>(
           segments: [
+            ButtonSegment(value: TimeRange.day, label: Text('teacher_link_range_day'.tr)),
             ButtonSegment(value: TimeRange.week, label: Text('teacher_link_range_week'.tr)),
             ButtonSegment(value: TimeRange.month, label: Text('teacher_link_range_month'.tr)),
             ButtonSegment(value: TimeRange.all, label: Text('teacher_link_range_all'.tr)),

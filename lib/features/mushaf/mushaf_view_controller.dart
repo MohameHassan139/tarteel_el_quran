@@ -59,19 +59,7 @@ class MushafViewController extends GetxController {
 
   void _startStopwatch() {
     _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final goalBefore = storage.getWardGoal();
-      final targetSeconds = goalBefore.targetMinutes * 60;
-      final beforeSeconds = goalBefore.activeSecondsToday;
-
-      storage.logReadingSeconds(1);
-
-      final goalAfter = storage.getWardGoal();
-      final afterSeconds = goalAfter.activeSecondsToday;
-
-      if (beforeSeconds < targetSeconds && afterSeconds >= targetSeconds) {
-        // Goal achieved just now! Trigger celebratory instant notification
-        Get.find<ReminderService>().triggerCelebrationNotification();
-      }
+      Get.find<ReminderService>().logWardProgress(1);
 
       _stopwatchTickCount++;
       if (_stopwatchTickCount % 30 == 0) {

@@ -536,6 +536,65 @@ class HifzScreen extends GetView<HifzController> {
     );
   }
 
+  void _showAyahNumberDialog(BuildContext context, {required bool isDark, required bool isStart}) {
+    final textController = TextEditingController(
+      text: isStart ? '${controller.startAyah.value}' : '${controller.endAyah.value}',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            void confirm() {
+              final value = int.tryParse(textController.text.trim());
+              if (value == null) {
+                setState(() => errorText = 'hifz_ayah_invalid_number'.tr);
+                return;
+              }
+              final error = isStart ? controller.setStartAyah(value) : controller.setEndAyah(value);
+              if (error != null) {
+                setState(() => errorText = error.tr);
+                return;
+              }
+              Navigator.pop(dialogContext);
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.cardDark : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                isStart ? 'ayah_start'.tr : 'ayah_end'.tr,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              content: TextField(
+                controller: textController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  errorText: errorText,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onSubmitted: (_) => confirm(),
+              ),
+              actions: [
+                TextButton(
+                  child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
+                  onPressed: () => Navigator.pop(dialogContext),
+                ),
+                TextButton(
+                  child: Text('ok'.tr, style: const TextStyle(color: AppColors.primary)),
+                  onPressed: confirm,
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // --- Visual range picker card ---
   Widget _buildAyahRangePicker(BuildContext context, bool isDark) {
     return Container(
@@ -562,15 +621,19 @@ class HifzScreen extends GetView<HifzController> {
                           icon: const Icon(Icons.remove_circle_outline, color: AppColors.primary),
                           onPressed: () => controller.decrementStartAyah(),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${controller.startAyah.value}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showAyahNumberDialog(context, isDark: isDark, isStart: true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${controller.startAyah.value}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                         IconButton(
@@ -596,15 +659,19 @@ class HifzScreen extends GetView<HifzController> {
                           icon: const Icon(Icons.remove_circle_outline, color: AppColors.primary),
                           onPressed: () => controller.decrementEndAyah(),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${controller.endAyah.value}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showAyahNumberDialog(context, isDark: isDark, isStart: false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${controller.endAyah.value}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                         IconButton(

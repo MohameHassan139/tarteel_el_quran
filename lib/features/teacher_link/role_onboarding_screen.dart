@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/app_colors.dart';
 import '../../routes/app_routes.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'role_onboarding_controller.dart';
 
 class RoleOnboardingScreen extends GetView<RoleOnboardingController> {
@@ -17,7 +18,11 @@ class RoleOnboardingScreen extends GetView<RoleOnboardingController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,6 +72,9 @@ class RoleOnboardingScreen extends GetView<RoleOnboardingController> {
                 )),
           ],
         ),
+            ),
+          ),
+        ],
       ),
     );
   }
