@@ -89,6 +89,9 @@ class HifzController extends GetxController {
   Future<void> initQuranData() async {
     try {
       await QuranCtrl.instance.ensureCoreDataLoaded();
+      if (chapters.isEmpty) {
+        loadChapters();
+      }
       update();
     } catch (_) {}
   }
@@ -100,6 +103,24 @@ class HifzController extends GetxController {
       selectedChapter.value = cached.first;
       startAyah.value = 1;
       endAyah.value = cached.first.versesCount;
+      return;
+    }
+    if (QuranCtrl.instance.surahsList.isNotEmpty) {
+      final offlineList = QuranCtrl.instance.surahsList.map((s) => Chapter(
+        id: s.number,
+        nameSimple: s.englishName,
+        nameComplex: s.englishName,
+        nameArabic: s.name,
+        versesCount: s.ayahsNumber,
+        revelationPlace: s.revelationType,
+        revelationOrder: 0,
+        translatedName: s.englishNameTranslation,
+      )).toList();
+      chapters.assignAll(offlineList);
+      selectedChapter.value = offlineList.first;
+      startAyah.value = 1;
+      endAyah.value = offlineList.first.versesCount;
+      unawaited(_storage.cacheChapters(offlineList));
     }
   }
 

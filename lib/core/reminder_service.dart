@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -12,67 +13,65 @@ class ReminderService extends GetxService {
   static const String teacherNoteChannelId = 'teacher_note_channel';
 
   Future<ReminderService> init() async {
-    // Initialize timezone database
-    tz.initializeTimeZones();
-
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _notificationsPlugin.initialize(settings: initSettings);
-
-    // Request notification permissions for Android 13+ and iOS. This must be
-    // awaited before scheduling anything below — requestExactAlarmsPermission()
-    // on Android 12+ just opens system Settings and doesn't block until the
-    // user grants it, so scheduleDailyReminder() always re-checks the actual
-    // current permission state itself rather than assuming this succeeded.
-    await _requestAndroidPermissions();
-    await _requestIOSPermissions();
-
-    // Automatically reschedule on init (rolls forward the 30 days daily reminder window)
     try {
+      // Initialize timezone database
+      tz.initializeTimeZones();
+
+      const AndroidInitializationSettings androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+
+      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+
+      await _notificationsPlugin.initialize(settings: initSettings);
+
+      // Request notification permissions safely without interrupting startup
+      _requestAndroidPermissions();
+      _requestIOSPermissions();
+
+      // Automatically reschedule in background on init (rolls forward the 30 days daily reminder window)
       final storage = Get.find<StorageService>();
       final goal = storage.getWardGoal();
-      await scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
+      unawaited(scheduleDailyReminder(goal.reminderHour, goal.reminderMinute));
     } catch (e) {
-      // Non-fatal, but keep a trace — silent failures here are exactly why
-      // reminders can appear "broken" with no visible cause.
+      // Non-fatal trace — ensure service registration never breaks app startup
       // ignore: avoid_print
-      print('ReminderService: failed to schedule daily reminder on init: $e');
+      print('ReminderService: init error: $e');
     }
 
     return this;
   }
 
   Future<void> _requestAndroidPermissions() async {
-    final androidPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin != null) {
-      await androidPlugin.requestNotificationsPermission();
-      await androidPlugin.requestExactAlarmsPermission();
-    }
+    try {
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.requestNotificationsPermission();
+      }
+    } catch (_) {}
   }
 
   Future<void> _requestIOSPermissions() async {
-    final iosPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-    if (iosPlugin != null) {
-      await iosPlugin.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    }
+    try {
+      final iosPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      if (iosPlugin != null) {
+        await iosPlugin.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+    } catch (_) {}
   }
 
   /// Whether exact-time alarms are currently permitted. On Android 12+ this

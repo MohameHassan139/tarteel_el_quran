@@ -4,7 +4,12 @@ import '../../core/storage_service.dart';
 import '../../models.dart';
 
 class HomeController extends GetxController {
-  final StorageService _storage = Get.find<StorageService>();
+  // Looked up lazily on each access (not as an eager field initializer) so
+  // that if StorageService is ever missing, this degrades to defaults
+  // instead of throwing while HomeBinding builds the very first screen the
+  // app shows — an uncaught throw there previously had nothing to catch it.
+  StorageService? get _storage =>
+      Get.isRegistered<StorageService>() ? Get.find<StorageService>() : null;
   final Rx<WardGoal> wardGoal = WardGoal.defaultGoal().obs;
   Timer? _timer;
 
@@ -16,11 +21,14 @@ class HomeController extends GetxController {
   }
 
   void loadGoal() {
-    wardGoal.value = _storage.getWardGoal();
+    final storage = _storage;
+    if (storage != null) {
+      wardGoal.value = storage.getWardGoal();
+    }
   }
 
   bool isDarkMode() {
-    return _storage.isDarkMode();
+    return _storage?.isDarkMode() ?? true;
   }
 
   @override

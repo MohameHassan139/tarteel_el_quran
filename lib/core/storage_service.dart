@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:get/get.dart';
 import '../models.dart';
@@ -17,11 +18,36 @@ class StorageService extends GetxService {
 
   Future<StorageService> init() async {
     await Hive.initFlutter();
-    _settingsBox = await Hive.openBox(settingsBoxName);
-    _quranContentBox = await Hive.openBox(quranContentBoxName);
-    _downloadedAudioBox = await Hive.openBox(downloadedAudioBoxName);
-    _wardTrackerBox = await Hive.openBox(wardTrackerBoxName);
+    _settingsBox = await _openBoxSafely(settingsBoxName);
+    _quranContentBox = await _openBoxSafely(quranContentBoxName);
+    _downloadedAudioBox = await _openBoxSafely(downloadedAudioBoxName);
+    _wardTrackerBox = await _openBoxSafely(wardTrackerBoxName);
     return this;
+  }
+
+  /// Opens a Hive box, self-healing if the box file on disk is corrupted.
+  ///
+  /// A box can end up corrupted if the process is killed mid-write (OS low
+  /// memory killer, forced-stop during a compatibility/monkey test, battery
+  /// optimization on some OEMs, etc.). Without this guard, `Hive.openBox`
+  /// throws on every subsequent launch, that exception propagates out of
+  /// `StorageService.init()`, and — because several other services fetch
+  /// this one eagerly via `Get.find<StorageService>()` — the app can never
+  /// start again until its data is cleared. Deleting and recreating just the
+  /// broken box trades a one-time loss of that box's cached data for an app
+  /// that reliably starts.
+  Future<Box> _openBoxSafely(String name) async {
+    try {
+      return await Hive.openBox(name);
+    } catch (e) {
+      debugPrint('StorageService: box "$name" failed to open ($e) — resetting it.');
+      try {
+        await Hive.deleteBoxFromDisk(name);
+      } catch (deleteError) {
+        debugPrint('StorageService: failed to delete corrupted box "$name": $deleteError');
+      }
+      return await Hive.openBox(name);
+    }
   }
 
   // --- Settings Box Helpers ---

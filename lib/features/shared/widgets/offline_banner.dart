@@ -10,6 +10,11 @@ class OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Degrade to invisible rather than throw if ConnectivityService never
+    // registered (its init is guarded in main.dart's initServices, so this
+    // widget can't assume it's there).
+    if (!Get.isRegistered<ConnectivityService>()) return const SizedBox.shrink();
+
     final connectivity = Get.find<ConnectivityService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

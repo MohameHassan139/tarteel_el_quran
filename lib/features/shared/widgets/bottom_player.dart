@@ -16,6 +16,13 @@ class BottomPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This widget is anchored on the Home screen unconditionally (see
+    // HomeScreen), so it must not assume AudioService registered — it
+    // won't have if StorageService failed to come up during startup (see
+    // main.dart's initServices). Hiding the player is a safe degradation;
+    // throwing here would take down the app's first screen.
+    if (!Get.isRegistered<AudioService>()) return const SizedBox.shrink();
+
     final audio = Get.find<AudioService>();
     final isArLocale = Get.locale?.languageCode == 'ar';
 

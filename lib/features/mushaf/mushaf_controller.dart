@@ -43,18 +43,33 @@ class MushafController extends GetxController {
       return;
     }
 
-    // No cache yet (first-ever launch) — block on the network as before.
+    // No cache yet (first-ever launch) — try network, then fallback to local quran_library
     isLoading.value = true;
     try {
       final list = await _api.fetchChapters();
       chapters.assignAll(list);
       filteredChapters.assignAll(list);
-    } on ApiException catch (e) {
-      errorMessage.value = e.message;
-    } catch (e) {
-      errorMessage.value = Get.locale?.languageCode == 'ar'
-          ? 'فشل الاتصال بالخادم وتحميل السور: ${e.toString()}'
-          : 'Failed to connect to server and load Surahs: ${e.toString()}';
+    } catch (_) {
+      // Offline fallback: Use offline surah list from quran_library assets
+      if (QuranCtrl.instance.surahsList.isNotEmpty) {
+        final offlineList = QuranCtrl.instance.surahsList.map((s) => Chapter(
+          id: s.number,
+          nameSimple: s.englishName,
+          nameComplex: s.englishName,
+          nameArabic: s.name,
+          versesCount: s.ayahsNumber,
+          revelationPlace: s.revelationType,
+          revelationOrder: 0,
+          translatedName: s.englishNameTranslation,
+        )).toList();
+        chapters.assignAll(offlineList);
+        filteredChapters.assignAll(offlineList);
+        unawaited(_storage.cacheChapters(offlineList));
+      } else {
+        errorMessage.value = Get.locale?.languageCode == 'ar'
+            ? 'فشل الاتصال بالخادم وتحميل السور'
+            : 'Failed to connect to server and load Surahs';
+      }
     } finally {
       isLoading.value = false;
     }
