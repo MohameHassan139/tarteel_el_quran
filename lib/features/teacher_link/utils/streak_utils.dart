@@ -7,17 +7,21 @@ int calculateCurrentStreak(Map<String, int> dailySeconds, {int minSecondsForActi
     return (dailySeconds[key] ?? 0) >= minSecondsForActiveDay;
   }
 
-  final today = DateTime.now();
+  final now = DateTime.now();
+  // Calendar arithmetic (not Duration) so a DST day can't be skipped.
+  DateTime dayBefore(DateTime d) => DateTime(d.year, d.month, d.day - 1);
+  final today = DateTime(now.year, now.month, now.day);
   DateTime cursor = today;
   if (!isActive(today)) {
-    cursor = today.subtract(const Duration(days: 1));
+    cursor = dayBefore(today);
     if (!isActive(cursor)) return 0;
   }
 
   int streak = 0;
-  while (isActive(cursor)) {
+  // Hard cap guards against any pathological data (e.g. >10 years of days).
+  while (isActive(cursor) && streak < 5000) {
     streak++;
-    cursor = cursor.subtract(const Duration(days: 1));
+    cursor = dayBefore(cursor);
   }
   return streak;
 }

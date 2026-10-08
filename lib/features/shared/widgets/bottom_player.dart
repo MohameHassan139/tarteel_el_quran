@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../core/audio_service.dart';
 import '../../../models.dart';
 import '../../../core/app_colors.dart';
+import '../../../core/surah_display.dart';
 
 class BottomPlayer extends StatelessWidget {
   const BottomPlayer({super.key});
@@ -52,7 +53,7 @@ class BottomPlayer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isArLocale ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
+                            SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple),
                             style: TextStyle(
                               color: Get.isDarkMode ? Colors.white : Colors.black87,
                               fontWeight: FontWeight.bold,
@@ -160,7 +161,7 @@ class BottomPlayer extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                isArLocale ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
+                SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple),
                 style: TextStyle(
                   color: Get.isDarkMode ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.bold,

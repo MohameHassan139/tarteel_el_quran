@@ -56,7 +56,7 @@ class WardController extends GetxController {
       reminderMinute: minute,
     );
     await _storage.saveWardGoal(updated);
-    await _reminder.scheduleDailyReminder(hour, minute);
+    await _reminder.scheduleDailyReminder(hour, minute, promptPermission: true);
     wardGoal.value = updated;
   }
 

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:quran_library/quran_library.dart';
 import 'mushaf_view_controller.dart';
 import '../../core/app_colors.dart';
+import '../../core/surah_display.dart';
 
 class MushafViewScreen extends GetView<MushafViewController> {
   const MushafViewScreen({super.key});
@@ -225,8 +226,8 @@ class MushafViewScreen extends GetView<MushafViewController> {
                                     final ayahNum = controller.activeAyahNumber.value;
                                     return Text(
                                       isLoaded && ayahNum != null
-                                          ? 'آية $ayahNum من ${controller.chapter.versesCount}'
-                                          : 'تلاوة سورة ${controller.chapter.nameArabic}',
+                                          ? 'ayah_count_indicator'.trParams({'ayah': '$ayahNum', 'total': '${controller.chapter.versesCount}'})
+                                          : 'recitation_of_surah'.trParams({'name': SurahDisplay.name(controller.chapter.id, fallback: controller.chapter.nameSimple)}),
                                       style: TextStyle(
                                         fontSize: 10,
                                         color: isDark

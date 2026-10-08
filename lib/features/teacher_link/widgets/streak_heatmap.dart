@@ -23,18 +23,20 @@ class StreakHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final today = DateTime.now();
-    final totalDays = weeksToShow * 7;
-    // Align the grid so the last column ends on today.
-    final startOffset = today.weekday % 7; // days since the most recent Sunday
-    final gridStart = today.subtract(Duration(days: totalDays - 1 + (6 - startOffset)));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Columns are Sunday→Saturday weeks; the LAST column is the current week
+    // (it contains today, later days are left blank). Built with calendar
+    // arithmetic (not Duration) so DST changes can't skip/duplicate a day.
+    final daysSinceSunday = today.weekday % 7;
+    final gridStart = DateTime(today.year, today.month, today.day - daysSinceSunday - weeksToShow * 7);
 
     final dailySeconds = dailyActivity.map((k, v) => MapEntry(k, v.seconds));
     final streak = calculateCurrentStreak(dailySeconds);
 
     final weeks = <List<DateTime>>[];
     for (int w = 0; w < weeksToShow + 1; w++) {
-      weeks.add(List.generate(7, (d) => gridStart.add(Duration(days: w * 7 + d))));
+      weeks.add(List.generate(7, (d) => DateTime(gridStart.year, gridStart.month, gridStart.day + w * 7 + d)));
     }
 
     return Column(

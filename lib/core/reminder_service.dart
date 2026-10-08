@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:get/get.dart';
@@ -14,8 +15,15 @@ class ReminderService extends GetxService {
 
   Future<ReminderService> init() async {
     try {
-      // Initialize timezone database
+      // Initialize timezone database and set device local timezone
       tz.initializeTimeZones();
+      try {
+        final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
+      } catch (tzError) {
+        // ignore: avoid_print
+        print('ReminderService: error setting local timezone: $tzError');
+      }
 
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -33,9 +41,31 @@ class ReminderService extends GetxService {
 
       await _notificationsPlugin.initialize(settings: initSettings);
 
-      // Request notification permissions safely without interrupting startup
-      _requestAndroidPermissions();
-      _requestIOSPermissions();
+      // Create Android notification channels explicitly
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'daily_ward_channel',
+            'Daily Ward Reminders',
+            description: 'Fired to remind the user to complete their daily Quran reading goal.',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            teacherNoteChannelId,
+            'Teacher Notes',
+            description: 'Notifies a student when their teacher sends a note.',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+      }
 
       // Automatically reschedule in background on init (rolls forward the 30 days daily reminder window)
       final storage = Get.find<StorageService>();
@@ -50,29 +80,30 @@ class ReminderService extends GetxService {
     return this;
   }
 
-  Future<void> _requestAndroidPermissions() async {
+  /// Request runtime notification permissions for Android 13+ and iOS.
+  Future<bool> requestPermissions() async {
+    bool granted = true;
     try {
       final androidPlugin = _notificationsPlugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
-        await androidPlugin.requestNotificationsPermission();
+        final res = await androidPlugin.requestNotificationsPermission();
+        if (res != null) granted = res;
       }
-    } catch (_) {}
-  }
-
-  Future<void> _requestIOSPermissions() async {
-    try {
       final iosPlugin = _notificationsPlugin
           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
       if (iosPlugin != null) {
-        await iosPlugin.requestPermissions(
+        final res = await iosPlugin.requestPermissions(
           alert: true,
           badge: true,
           sound: true,
         );
+        if (res != null) granted = granted && res;
       }
     } catch (_) {}
+    return granted;
   }
+
 
   /// Whether exact-time alarms are currently permitted. On Android 12+ this
   /// requires a one-time user grant in system Settings (requestExactAlarmsPermission
@@ -90,8 +121,28 @@ class ReminderService extends GetxService {
     }
   }
 
+  /// Request exact alarm permission from Android settings if not already granted.
+  Future<bool> checkAndRequestExactAlarmPermission() async {
+    final androidPlugin = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return true;
+    try {
+      final canExact = await androidPlugin.canScheduleExactNotifications() ?? false;
+      if (!canExact) {
+        await androidPlugin.requestExactAlarmsPermission();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Schedule a daily notification at a specific hour and minute for the next 30 days.
-  Future<void> scheduleDailyReminder(int hour, int minute) async {
+  Future<void> scheduleDailyReminder(int hour, int minute, {bool promptPermission = false}) async {
+    if (promptPermission) {
+      await requestPermissions();
+    }
     await cancelReminder(); // Remove any previous schedules
 
     // Fall back to an inexact (but still daily, still reliable) schedule
@@ -247,6 +298,7 @@ class ReminderService extends GetxService {
 
   /// Fire an immediate test notification simulating progress.
   Future<void> triggerInstantTestNotification() async {
+    await requestPermissions();
     final storage = Get.find<StorageService>();
     final lang = storage.getAppLanguage();
     final goal = storage.getWardGoal();

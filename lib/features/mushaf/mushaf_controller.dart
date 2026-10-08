@@ -66,9 +66,7 @@ class MushafController extends GetxController {
         filteredChapters.assignAll(offlineList);
         unawaited(_storage.cacheChapters(offlineList));
       } else {
-        errorMessage.value = Get.locale?.languageCode == 'ar'
-            ? 'فشل الاتصال بالخادم وتحميل السور'
-            : 'Failed to connect to server and load Surahs';
+        errorMessage.value = 'mushaf_load_failed'.tr;
       }
     } finally {
       isLoading.value = false;

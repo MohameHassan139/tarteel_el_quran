@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import '../../core/storage_service.dart';
+import '../../core/reminder_service.dart';
 import '../../models.dart';
 
 class HomeController extends GetxController {
@@ -18,6 +19,14 @@ class HomeController extends GetxController {
     super.onInit();
     loadGoal();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => loadGoal());
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    if (Get.isRegistered<ReminderService>()) {
+      Get.find<ReminderService>().requestPermissions();
+    }
   }
 
   void loadGoal() {

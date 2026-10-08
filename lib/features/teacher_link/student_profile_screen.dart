@@ -37,13 +37,9 @@ class StudentProfileScreen extends GetView<StudentProfileController> {
                   children: [
                     _field(controller.nameController, 'teacher_link_field_name'.tr, Icons.person_outline),
                     const SizedBox(height: 12),
-                    _field(controller.ageController, 'teacher_link_field_age'.tr, Icons.cake_outlined, keyboardType: TextInputType.number),
-                    const SizedBox(height: 12),
                     _field(controller.phoneController, 'teacher_link_field_phone'.tr, Icons.phone_outlined, keyboardType: TextInputType.phone),
                     const SizedBox(height: 12),
                     _field(controller.whatsappController, 'teacher_link_field_whatsapp'.tr, Icons.chat_outlined, keyboardType: TextInputType.phone),
-                    const SizedBox(height: 12),
-                    _field(controller.fatherPhoneController, 'teacher_link_field_father_phone'.tr, Icons.family_restroom_outlined, keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     Obx(() => SizedBox(
                           width: double.infinity,

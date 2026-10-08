@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'storage_service.dart';
 import 'teacher_sync_service.dart';
 import 'reminder_service.dart';
+import 'surah_display.dart';
 import '../models.dart';
 
 class HifzLoopConfig {
@@ -45,6 +46,10 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   // Hifz delay reactive states
   final RxBool isWaitingDelay = false.obs;
   final RxInt delayCountdown = 0.obs;
+
+  /// Flips to true only when a Hifz loop ran through every verse and range
+  /// repetition (as opposed to being stopped by the user or replaced).
+  final RxBool hifzLoopFinished = false.obs;
 
   StreamSubscription? _playerStateSub;
   StreamSubscription? _currentIndexSub;
@@ -136,8 +141,9 @@ class AudioService extends GetxService with WidgetsBindingObserver {
       if (!sync.isStudent) return;
       unawaited(sync.setLiveActivity(
         feature: 'audio',
-        label: _activeChapter?.nameArabic ?? '',
+        label: _activeChapter?.nameSimple ?? '',
         elapsedSeconds: _audioListeningElapsedSeconds,
+        chapterId: _activeChapter?.id,
       ));
       unawaited(sync.syncTodayActivity());
     });
@@ -229,7 +235,6 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     final isAr = _storageService.getAppLanguage() == 'ar';
 
     final playlist = ConcatenatingAudioSource(
-      useLazyPreparation: true,
       children: List.generate(audioPathsOrUrls.length, (index) {
         final path = audioPathsOrUrls[index];
         final MediaItem tag;
@@ -238,7 +243,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
         } else {
           tag = MediaItem(
             id: 'audio_${chapter.id}_$index',
-            title: isAr ? 'سورة ${chapter.nameArabic}' : chapter.nameSimple,
+            title: isAr ? 'سورة ${SurahDisplay.stripArabicSurahPrefix(chapter.nameArabic)}' : chapter.nameSimple,
             artist: isAr ? 'آية ${index + 1}' : 'Ayah ${index + 1}',
             album: isAr ? 'المصحف الشريف' : 'Holy Quran',
           );
@@ -265,6 +270,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
   /// Start Hifz playback loop using the sequential single-item player state machine.
   Future<void> playHifz(Chapter chapter, List<String> audioPathsOrUrls, HifzLoopConfig config) async {
+    hifzLoopFinished.value = false;
     await stop();
 
     _activeChapter = chapter;
@@ -306,7 +312,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     final isAr = _storageService.getAppLanguage() == 'ar';
     final MediaItem tag = MediaItem(
       id: 'hifz_${_activeChapter!.id}_$_hifzCurrentIndex',
-      title: isAr ? 'سورة ${_activeChapter!.nameArabic}' : _activeChapter!.nameSimple,
+      title: isAr ? 'سورة ${SurahDisplay.stripArabicSurahPrefix(_activeChapter!.nameArabic)}' : _activeChapter!.nameSimple,
       artist: isAr ? 'آية ${_hifzCurrentIndex + 1}' : 'Ayah ${_hifzCurrentIndex + 1}',
       album: isAr ? 'مساحة الحفظ والتركيز' : 'Memorization Workspace',
     );
@@ -315,13 +321,12 @@ class AudioService extends GetxService with WidgetsBindingObserver {
         ? AudioSource.uri(Uri.parse(path), tag: tag)
         : AudioSource.file(path, tag: tag);
 
-    try {
-      _isCompleted = false;
-      await _player.setAudioSource(source);
-      await _player.play();
-    } catch (_) {
-      rethrow;
-    }
+    _isCompleted = false;
+    await _player.setAudioSource(source);
+    // just_audio's play() future only completes when playback pauses/ends,
+    // so awaiting it would stall callers (startHifz timers, replay) for the
+    // whole ayah. Loading errors are already surfaced by setAudioSource.
+    unawaited(_player.play().catchError((Object _) {}));
   }
 
   Future<void> _handleHifzAyahCompleted() async {
@@ -372,6 +377,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
           }
         } else {
           // Finished all repetitions and ranges
+          hifzLoopFinished.value = true;
           await stop();
         }
       }
@@ -405,14 +411,17 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> resume() async {
+    // Set before starting: play()'s future only completes on the NEXT pause,
+    // so assigning after `await` used to flip the icon back to "playing"
+    // right after the user paused.
+    isPlaying.value = true;
     if (isWaitingDelay.value) {
       _startHifzDelayTimer(() {
         _playHifzCurrentAyah();
       });
     } else {
-      await _player.play();
+      unawaited(_player.play().catchError((Object _) {}));
     }
-    isPlaying.value = true;
   }
 
   Future<void> stop() async {
@@ -499,12 +508,13 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   /// Synchronize active verse with play index (used in normal Mushaf mode).
   Future<void> _updateActiveVerse(int currentIndex) async {
     if (_activeChapter == null) return;
+    if (_lastTrackedIndex == currentIndex) return;
+    _lastTrackedIndex = currentIndex;
     
     final activeKey = '${_activeChapter!.id}:${currentIndex + 1}';
     
     if (activeVerseKey.value != activeKey) {
       activeVerseKey.value = activeKey;
     }
-    _lastTrackedIndex = currentIndex;
   }
 }

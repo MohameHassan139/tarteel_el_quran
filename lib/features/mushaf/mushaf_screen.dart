@@ -6,6 +6,7 @@ import '../../core/download_service.dart';
 import '../../core/storage_service.dart';
 import 'mushaf_controller.dart';
 import '../../core/app_colors.dart';
+import '../../core/surah_display.dart';
 import '../shared/widgets/offline_banner.dart';
 
 class MushafScreen extends GetView<MushafController> {
@@ -109,8 +110,8 @@ class MushafScreen extends GetView<MushafController> {
                       : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
 
                   final displaySubtitle = isAr
-                      ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'meccan'.tr : 'medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
-                      : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
+                      ? "${SurahDisplay.revelationLabel(quranLibrarySurah?.revelationType ?? chapter.revelationPlace)} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
+                      : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${SurahDisplay.revelationLabel(quranLibrarySurah?.revelationType ?? chapter.revelationPlace)} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
 
                   return ListTile(
                     onTap: () {

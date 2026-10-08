@@ -11,10 +11,8 @@ class StudentProfileController extends GetxController {
   final ConnectivityService _connectivity = Get.find<ConnectivityService>();
 
   final nameController = TextEditingController();
-  final ageController = TextEditingController();
   final phoneController = TextEditingController();
   final whatsappController = TextEditingController();
-  final fatherPhoneController = TextEditingController();
 
   final RxBool isSaving = false.obs;
 
@@ -24,10 +22,15 @@ class StudentProfileController extends GetxController {
     final cached = _storage.getStudentProfileCache();
     if (cached != null) {
       nameController.text = cached['name'] as String? ?? '';
-      ageController.text = (cached['age'] as int?)?.toString() ?? '';
       phoneController.text = cached['phone'] as String? ?? '';
       whatsappController.text = cached['whatsapp'] as String? ?? '';
-      fatherPhoneController.text = cached['fatherPhone'] as String? ?? '';
+      // Drop fields older versions stored locally but the app no longer collects.
+      if (cached.containsKey('age') || cached.containsKey('fatherPhone')) {
+        final cleaned = Map<String, dynamic>.from(cached)
+          ..remove('age')
+          ..remove('fatherPhone');
+        _storage.setStudentProfileCache(cleaned);
+      }
     }
   }
 
@@ -45,10 +48,8 @@ class StudentProfileController extends GetxController {
     try {
       await sync.activateStudentProfile(
         name: nameController.text.trim(),
-        age: int.tryParse(ageController.text.trim()) ?? 0,
         phone: phoneController.text.trim(),
         whatsapp: whatsappController.text.trim(),
-        fatherPhone: fatherPhoneController.text.trim(),
       );
       Get.snackbar(
         'teacher_link_saved_title'.tr,
@@ -131,10 +132,8 @@ class StudentProfileController extends GetxController {
 
     await sync.deactivateAndDeleteCloudData();
     nameController.clear();
-    ageController.clear();
     phoneController.clear();
     whatsappController.clear();
-    fatherPhoneController.clear();
     Get.snackbar(
       'teacher_link_delete_data_title'.tr,
       'teacher_link_delete_data_done'.tr,
@@ -147,10 +146,8 @@ class StudentProfileController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
-    ageController.dispose();
     phoneController.dispose();
     whatsappController.dispose();
-    fatherPhoneController.dispose();
     super.onClose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import '../../../core/app_colors.dart';
+import '../../../core/surah_display.dart';
 import '../teacher_link_models.dart';
 
 /// One row in a student's session history, rendered with the `timeline_tile`
@@ -12,11 +13,15 @@ class SessionTimelineTile extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
 
+  /// Optional "comment on this session" action (teacher review).
+  final VoidCallback? onComment;
+
   const SessionTimelineTile({
     super.key,
     required this.session,
     this.isFirst = false,
     this.isLast = false,
+    this.onComment,
   });
 
   String _formatDate(String iso) {
@@ -31,7 +36,7 @@ class SessionTimelineTile extends StatelessWidget {
   String _formatDuration(int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
-    return '${m}m ${s}s';
+    return 'student_duration_fmt'.trParams({'m': '$m', 's': '$s'});
   }
 
   Color _colorForRating(int rating) {
@@ -85,7 +90,7 @@ class SessionTimelineTile extends StatelessWidget {
         thickness: 3,
       ),
       endChild: Padding(
-        padding: const EdgeInsets.only(right: 12, bottom: 14, left: 4),
+        padding: const EdgeInsetsDirectional.only(start: 12, bottom: 14, end: 2),
         child: Card(
           color: isDark ? AppColors.cardDark : Colors.white,
           elevation: 2,
@@ -105,11 +110,12 @@ class SessionTimelineTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'teacher_link_session_title'.trParams({
-                          'surah': session.chapterName,
-                          'start': '${session.reachedStartAyah}',
-                          'end': '${session.reachedEndAyah}',
-                        }),
+                        SurahDisplay.rangeTitle(
+                          session.chapterId,
+                          session.plannedStartAyah,
+                          session.plannedEndAyah,
+                          fallback: session.chapterName,
+                        ),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -126,7 +132,12 @@ class SessionTimelineTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${session.reachedEndAyah - session.reachedStartAyah + 1}/${session.plannedEndAyah - session.plannedStartAyah + 1}',
+                        session.fullyCompleted
+                            ? 'student_completed_badge'.tr
+                            : 'student_partial_badge'.trParams({
+                                'reached': '${session.reachedCount}',
+                                'planned': '${session.plannedCount}',
+                              }),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -141,7 +152,7 @@ class SessionTimelineTile extends StatelessWidget {
                   'teacher_link_session_subtitle'.trParams({
                     'date': _formatDate(session.date),
                     'duration': _formatDuration(session.durationSeconds),
-                    'reciter': session.reciterName,
+                    'reciter': SurahDisplay.reciterName(session.reciterId, fallback: session.reciterName),
                   }),
                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
@@ -157,15 +168,42 @@ class SessionTimelineTile extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 Row(
-                  children: List.generate(5, (i) {
-                    return Icon(
-                      i < session.rating
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: ratingColor,
-                      size: 15,
-                    );
-                  }),
+                  children: [
+                    ...List.generate(5, (i) {
+                      return Icon(
+                        i < session.rating
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: ratingColor,
+                        size: 15,
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'student_reps'.trParams({
+                          'verse': '${session.verseRepetitionsPlanned}',
+                          'range': '${session.rangeRepetitionsPlanned}',
+                        }),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      ),
+                    ),
+                    if (onComment != null) ...[
+                      const Spacer(),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: onComment,
+                        icon: const Icon(Icons.rate_review_outlined, size: 16),
+                        label: Text('student_comment_session'.tr, style: const TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

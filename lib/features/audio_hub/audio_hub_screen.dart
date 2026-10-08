@@ -4,6 +4,7 @@ import '../shared/widgets/bottom_player.dart';
 import '../shared/widgets/offline_banner.dart';
 import 'audio_hub_controller.dart';
 import '../../core/app_colors.dart';
+import '../../core/surah_display.dart';
 import 'package:quran_library/quran_library.dart';
 
 class AudioHubScreen extends GetView<AudioHubController> {
@@ -307,8 +308,8 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             : (quranLibrarySurah?.englishName ?? chapter.nameSimple);
 
                         final displaySubtitle = isAr
-                            ? "${quranLibrarySurah?.revelationType == 'Meccan' ? 'meccan'.tr : 'medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
-                            : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${quranLibrarySurah?.revelationType ?? chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
+                            ? "${SurahDisplay.revelationLabel(quranLibrarySurah?.revelationType ?? chapter.revelationPlace)} • ${'ayahs_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}"
+                            : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${SurahDisplay.revelationLabel(quranLibrarySurah?.revelationType ?? chapter.revelationPlace)} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
 
                         return ListTile(
                           leading: Container(

@@ -6,6 +6,7 @@ import '../../models.dart';
 import 'hifz_controller.dart';
 import '../../core/app_colors.dart';
 import '../../core/teacher_sync_service.dart';
+import '../../core/surah_display.dart';
 import '../teacher_link/teacher_link_models.dart';
 
 class HifzScreen extends GetView<HifzController> {
@@ -148,8 +149,11 @@ class HifzScreen extends GetView<HifzController> {
             if (lastSession == null) return const SizedBox();
             
             final chId = lastSession['chapterId'] as int? ?? 1;
-            final chapter = controller.chapters.firstWhereOrNull((c) => c.id == chId);
-            final chName = chapter != null ? (isAr ? chapter.nameArabic : chapter.nameSimple) : 'Al-Baqarah';
+            final resumeTitle = SurahDisplay.rangeTitle(
+              chId,
+              lastSession['startAyah'] as int? ?? 1,
+              lastSession['endAyah'] as int? ?? 1,
+            );
             
             return GestureDetector(
               onTap: () {
@@ -182,8 +186,7 @@ class HifzScreen extends GetView<HifzController> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              isAr ? 'سورة $chName (الآيات ${lastSession['startAyah']} - ${lastSession['endAyah']})'
-                                   : 'Surah $chName (Ayahs ${lastSession['startAyah']} - ${lastSession['endAyah']})',
+                              resumeTitle,
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                             ),
                           ],
@@ -238,13 +241,17 @@ class HifzScreen extends GetView<HifzController> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      isAr ? 'سورة ${chapter.nameArabic}' : 'Surah ${chapter.nameSimple}',
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'UthmanicHafs'),
+                                      SurahDisplay.title(chapter.id, fallback: isAr ? chapter.nameArabic : chapter.nameSimple),
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        // The Uthmanic font has no Latin glyphs.
+                                        fontFamily: isAr ? 'UthmanicHafs' : null,
+                                      ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      isAr ? '${chapter.nameSimple} • ${chapter.revelationPlace == 'Meccan' ? 'revelation_meccan'.tr : 'revelation_medinan'.tr} • ${'ayahs_count_param'.trParams({'count': '${chapter.versesCount}'})}'
-                                           : '${chapter.nameSimple} • ${chapter.revelationPlace} • ${'verses_count_param'.trParams({'count': '${chapter.versesCount}'})}',
+                                      '${isAr ? chapter.nameSimple : chapter.translatedName} • ${SurahDisplay.revelationLabel(chapter.revelationPlace)} • ${(isAr ? 'ayahs_count_param' : 'verses_count_param').trParams({'count': '${chapter.versesCount}'})}',
                                       style: TextStyle(color: Colors.grey[500], fontSize: 13),
                                     ),
                                   ],
@@ -471,6 +478,9 @@ class HifzScreen extends GetView<HifzController> {
                       },
                     ),
                   ],
+                  const Divider(height: 24),
+                  // Tajweed colors
+                  _buildTajweedSettingRow(context, isDark),
                   const Divider(height: 24),
                   // Translation Switch
                   Row(
@@ -762,7 +772,7 @@ class HifzScreen extends GetView<HifzController> {
     final totalSessions = controller.hifzHistoryList.length;
     final completedSurahs = controller.hifzHistoryList.map((e) => e['chapterId']).toSet().length;
     final lastActiveDate = controller.hifzHistoryList.isNotEmpty
-        ? _formatDate(controller.hifzHistoryList.first['date'] as String)
+        ? _formatDate(controller.hifzHistoryList.first['date'] as String? ?? '')
         : 'no_active_date'.tr;
 
     return SingleChildScrollView(
@@ -840,7 +850,7 @@ class HifzScreen extends GetView<HifzController> {
               itemBuilder: (context, index) {
                 final entry = controller.hifzHistoryList[index];
                 final rating = entry['rating'] as int? ?? 5;
-                final dateStr = _formatDate(entry['date'] as String);
+                final dateStr = _formatDate(entry['date'] as String? ?? '');
                 return Card(
                   color: isDark ? AppColors.cardDark : Colors.white,
                   margin: const EdgeInsets.only(bottom: 12),
@@ -848,16 +858,22 @@ class HifzScreen extends GetView<HifzController> {
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     title: Text(
-                      Get.locale?.languageCode == 'ar' 
-                          ? 'سورة ${entry['chapterName']} (الآيات ${entry['startAyah']} - ${entry['endAyah']})'
-                          : 'Surah ${entry['chapterName']} (Ayahs ${entry['startAyah']} - ${entry['endAyah']})',
+                      SurahDisplay.rangeTitle(
+                        entry['chapterId'] as int? ?? 0,
+                        entry['startAyah'] as int? ?? 1,
+                        entry['endAyah'] as int? ?? 1,
+                        fallback: entry['chapterName'] as String? ?? '',
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text('session_details_subtitle'.trParams({'date': dateStr, 'reciter': '${entry['reciterName']}'})),
+                        Text('session_details_subtitle'.trParams({
+                          'date': dateStr,
+                          'reciter': SurahDisplay.reciterName(entry['reciterId'] as int?, fallback: entry['reciterName'] as String? ?? ''),
+                        })),
                         if (entry['notes'] != null && (entry['notes'] as String).isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text('session_notes_prefix'.trParams({'notes': '${entry['notes']}'}), style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
@@ -940,8 +956,16 @@ class HifzScreen extends GetView<HifzController> {
   // --- Active Memorization Workspace ---
   Widget _buildWorkspace(BuildContext context, bool isDark) {
     final audio = controller.audioService;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
-    return Scaffold(
+    return PopScope(
+      // System back / swipe must end the session exactly like the app-bar
+      // back arrow, instead of leaving the loop playing on a closed route.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) controller.stopHifz();
+      },
+      child: Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
         title: Text('hifz_workspace_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -951,6 +975,16 @@ class HifzScreen extends GetView<HifzController> {
           onPressed: () => controller.stopHifz(),
         ),
         actions: [
+          if (controller.isTajweedSupported)
+            Obx(() => IconButton(
+                  tooltip: controller.showTajweed.value ? 'tajweed_on'.tr : 'tajweed_off'.tr,
+                  icon: Icon(
+                    Icons.palette_outlined,
+                    color: controller.showTajweed.value ? AppColors.accent : Colors.grey,
+                  ),
+                  onPressed: () => controller.toggleTajweed(!controller.showTajweed.value),
+                  onLongPress: () => _showTajweedLegendSheet(context),
+                )),
           IconButton(
             icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 28),
             onPressed: () => _showFinishDialog(context),
@@ -969,9 +1003,36 @@ class HifzScreen extends GetView<HifzController> {
         }
 
         final currentVerse = controller.currentRecitingVerse.value;
+        final showTajweed = controller.showTajweed.value && controller.isTajweedSupported;
 
         return Column(
           children: [
+            if (controller.sessionCompleted.value)
+              Container(
+                width: double.infinity,
+                color: AppColors.primary.withOpacity(0.9),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.emoji_events_rounded, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('hifz_session_completed'.tr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text('hifz_session_completed_desc'.tr, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.primary),
+                      onPressed: () => _showFinishDialog(context),
+                      child: Text('hifz_save_progress_short'.tr),
+                    ),
+                  ],
+                ),
+              ),
             // Silence Countdown Bar (Visual aid when repeating or waiting)
             if (audio.isWaitingDelay.value)
               Container(
@@ -1073,11 +1134,14 @@ class HifzScreen extends GetView<HifzController> {
                                     child: Directionality(
                                       textDirection: TextDirection.rtl,
                                       child: GetSingleAyah(
+                                        // Rebuild fully when tajweed flips so the new font family is used.
+                                        key: ValueKey('ayah_${surahNum}_${ayahNum}_$showTajweed'),
                                         surahNumber: surahNum,
                                         ayahNumber: ayahNum,
                                         isDark: isDark,
                                         fontSize: controller.arabicFontSize.value,
                                         isBold: false,
+                                        enabledTajweed: showTajweed,
                                       ),
                                     ),
                                   ),
@@ -1162,9 +1226,9 @@ class HifzScreen extends GetView<HifzController> {
                         icon: const Icon(Icons.format_size_rounded),
                         onPressed: () => _showTextSizeSheet(context),
                       ),
-                      // Skip Prev Ayah
+                      // Skip Prev Ayah (icon points "backwards" for the reading direction)
                       IconButton(
-                        icon: const Icon(Icons.skip_next_rounded, size: 32),
+                        icon: Icon(isRtl ? Icons.skip_next_rounded : Icons.skip_previous_rounded, size: 32),
                         onPressed: audio.canGoPrevHifz ? () => audio.playPrevHifz() : null,
                       ),
                       // Play/Pause circular control
@@ -1173,16 +1237,24 @@ class HifzScreen extends GetView<HifzController> {
                         backgroundColor: AppColors.primary,
                         child: IconButton(
                           icon: Icon(
-                            audio.isPlaying.value ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            controller.sessionCompleted.value
+                                ? Icons.replay_rounded
+                                : audio.isPlaying.value
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
                             color: Colors.white,
                             size: 32,
                           ),
-                          onPressed: audio.isPlaying.value ? () => audio.pause() : () => audio.resume(),
+                          onPressed: controller.sessionCompleted.value
+                              ? () => controller.replayCompletedLoop()
+                              : audio.isPlaying.value
+                                  ? () => audio.pause()
+                                  : () => audio.resume(),
                         ),
                       ),
                       // Skip Next Ayah
                       IconButton(
-                        icon: const Icon(Icons.skip_previous_rounded, size: 32),
+                        icon: Icon(isRtl ? Icons.skip_previous_rounded : Icons.skip_next_rounded, size: 32),
                         onPressed: audio.canGoNextHifz ? () => audio.playNextHifz() : null,
                       ),
                       // Masking/Blur Switch
@@ -1203,6 +1275,163 @@ class HifzScreen extends GetView<HifzController> {
           ],
         );
       }),
+      ),
+    );
+  }
+
+  // --- Tajweed helpers ---
+
+  Widget _buildTajweedSettingRow(BuildContext context, bool isDark) {
+    final supported = controller.isTajweedSupported;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.palette_outlined, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('tajweed_colors'.tr, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  Text(
+                    supported ? 'tajweed_colors_desc'.tr : 'tajweed_needs_default_font'.tr,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: supported && controller.showTajweed.value,
+              activeColor: AppColors.primary,
+              onChanged: supported ? (val) => controller.toggleTajweed(val) : null,
+            ),
+          ],
+        ),
+        if (supported && controller.showTajweed.value) ...[
+          const SizedBox(height: 10),
+          _buildTajweedColorStrip(),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              icon: const Icon(Icons.info_outline_rounded, size: 18),
+              label: Text('tajweed_legend_show'.tr),
+              onPressed: () => _showTajweedLegendSheet(context),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  List<TajweedRuleModel> _tajweedRules() {
+    try {
+      final lang = Get.locale?.languageCode ?? 'ar';
+      return QuranCtrl.instance.getTajweedRulesListForLanguage(languageCode: lang);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Widget _buildTajweedColorStrip() {
+    final rules = _tajweedRules();
+    if (rules.isEmpty) return const SizedBox.shrink();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        height: 8,
+        child: Row(
+          children: rules.map((r) => Expanded(child: Container(color: Color(r.color)))).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showTajweedLegendSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rules = _tajweedRules();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetContext).size.height * 0.75),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[500], borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'tajweed_legend_title'.tr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              const SizedBox(height: 12),
+              Obx(() => SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('tajweed_colors'.tr),
+                    value: controller.showTajweed.value,
+                    activeColor: AppColors.primary,
+                    onChanged: controller.isTajweedSupported ? (v) => controller.toggleTajweed(v) : null,
+                  )),
+              const Divider(),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: rules.length,
+                  separatorBuilder: (ctx, index) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final rule = rules[i];
+                    final color = Color(rule.color);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(rule.displayText, style: const TextStyle(fontSize: 14))),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1270,10 +1499,13 @@ class HifzScreen extends GetView<HifzController> {
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           child: Text('${chapter.id}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text('surah_info_format'.trParams({'nameSimple': chapter.nameSimple, 'nameArabic': chapter.nameArabic})),
+                        title: Text('surah_info_format'.trParams({
+                          'nameSimple': chapter.nameSimple,
+                          'nameArabic': SurahDisplay.stripArabicSurahPrefix(chapter.nameArabic),
+                        })),
                         subtitle: Text('surah_details_format'.trParams({
                           'versesCount': '${chapter.versesCount}',
-                          'revelationType': chapter.revelationPlace == 'Meccan' ? 'revelation_meccan'.tr : 'revelation_medinan'.tr
+                          'revelationType': SurahDisplay.revelationLabel(chapter.revelationPlace),
                         })),
                         onTap: () {
                           controller.onSurahChanged(chapter);

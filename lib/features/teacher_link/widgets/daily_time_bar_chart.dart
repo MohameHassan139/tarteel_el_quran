@@ -21,7 +21,7 @@ class DailyTimeBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final days = List.generate(daysToShow, (i) => now.subtract(Duration(days: daysToShow - 1 - i)));
+    final days = List.generate(daysToShow, (i) => DateTime(now.year, now.month, now.day - (daysToShow - 1 - i)));
 
     double maxMinutes = 1;
     final groups = <BarChartGroupData>[];
@@ -70,7 +70,7 @@ class DailyTimeBarChart extends StatelessWidget {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final d = days[group.x.toInt()];
                     return BarTooltipItem(
-                      '${d.year}/${d.month}/${d.day}\n${rod.toY.round()} min',
+                      '${d.year}/${d.month}/${d.day}\n${rod.toY.round()} ${'student_min_suffix'.tr}',
                       const TextStyle(color: Colors.white, fontSize: 11),
                     );
                   },

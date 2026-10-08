@@ -463,6 +463,43 @@ class StorageService extends GetxService {
     await _settingsBox.put('audio_listening_daily', jsonEncode(map));
   }
 
+  /// Per-day Hifz practice seconds (date -> seconds). Tracked separately so
+  /// the teacher breakdown doesn't have to guess how much of the combined
+  /// daily ward total came from Hifz vs. Mushaf reading.
+  Map<String, int> getHifzDailySeconds() {
+    final rawJson = _settingsBox.get('hifz_practice_daily') as String?;
+    if (rawJson == null) return {};
+    try {
+      final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value as int));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> logHifzPracticeSeconds(int seconds) async {
+    final today = _todayDateString();
+    final map = getHifzDailySeconds();
+    map[today] = (map[today] ?? 0) + seconds;
+    // Keep the map small — only the last ~60 days are ever needed.
+    if (map.length > 60) {
+      final keys = map.keys.toList()..sort();
+      for (final k in keys.take(map.length - 60)) {
+        map.remove(k);
+      }
+    }
+    await _settingsBox.put('hifz_practice_daily', jsonEncode(map));
+  }
+
+  /// Whether the Hifz workspace renders ayahs with Tajweed colors.
+  bool getHifzShowTajweed() {
+    return _settingsBox.get('hifz_show_tajweed', defaultValue: false) as bool;
+  }
+
+  Future<void> setHifzShowTajweed(bool value) async {
+    await _settingsBox.put('hifz_show_tajweed', value);
+  }
+
   String _todayDateString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';

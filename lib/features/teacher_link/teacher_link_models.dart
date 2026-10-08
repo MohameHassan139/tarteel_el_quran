@@ -42,39 +42,69 @@ class LinkedTeacher {
 class StudentSummary {
   final String uid;
   final String name;
-  final int age;
   final String phone;
   final String whatsapp;
-  final String fatherPhone;
   final int currentStreakDays;
   final String lastActiveDate;
   final int totalSessionsSynced;
+  final Map<String, dynamic>? liveActivity;
 
   StudentSummary({
     required this.uid,
     required this.name,
-    required this.age,
     required this.phone,
     required this.whatsapp,
-    required this.fatherPhone,
     required this.currentStreakDays,
     required this.lastActiveDate,
     required this.totalSessionsSynced,
+    this.liveActivity,
   });
+
+  /// "What is the student doing right now", only if it was refreshed recently
+  /// (a student who closed the app mid-session leaves a stale entry behind).
+  bool get isLiveNow => isLiveActivityMapFresh(liveActivity);
+
+  /// Whole days since [lastActiveDate] (0 = today), or null if never active.
+  int? get daysSinceActive {
+    final parsed = DateTime.tryParse(lastActiveDate);
+    if (parsed == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(parsed.year, parsed.month, parsed.day);
+    final diff = today.difference(day).inHours;
+    // Round to whole days so a DST shift (23h/25h day) doesn't skew it.
+    return (diff / 24).round().clamp(0, 100000).toInt();
+  }
+
+  bool get isActiveToday => isLiveNow || daysSinceActive == 0;
+
+  /// Never started, or no activity for 3+ days.
+  bool get needsAttention {
+    if (isLiveNow) return false;
+    final d = daysSinceActive;
+    return d == null || d >= 3;
+  }
 
   factory StudentSummary.fromMap(String uid, Map<String, dynamic> map) {
     return StudentSummary(
       uid: uid,
       name: map['name'] as String? ?? '',
-      age: map['age'] as int? ?? 0,
       phone: map['phone'] as String? ?? '',
       whatsapp: map['whatsapp'] as String? ?? '',
-      fatherPhone: map['fatherPhone'] as String? ?? '',
       currentStreakDays: map['currentStreakDays'] as int? ?? 0,
       lastActiveDate: map['lastActiveDate'] as String? ?? '',
       totalSessionsSynced: map['totalSessionsSynced'] as int? ?? 0,
+      liveActivity: map['liveActivity'] is Map ? Map<String, dynamic>.from(map['liveActivity'] as Map) : null,
     );
   }
+}
+
+/// True while a `liveActivity` map's timestamp is recent enough to trust.
+bool isLiveActivityMapFresh(Map<String, dynamic>? activity, {Duration maxAge = const Duration(minutes: 2)}) {
+  if (activity == null) return false;
+  final updatedAt = _toDate(activity['updatedAt']);
+  if (updatedAt == null) return false;
+  return DateTime.now().difference(updatedAt) < maxAge;
 }
 
 class HifzSessionRecord {
@@ -90,6 +120,7 @@ class HifzSessionRecord {
   final int verseRepetitionsPlanned;
   final int rangeRepetitionsPlanned;
   final String reciterName;
+  final int? reciterId;
   final int rating;
   final String notes;
   final String date;
@@ -108,6 +139,7 @@ class HifzSessionRecord {
     required this.verseRepetitionsPlanned,
     required this.rangeRepetitionsPlanned,
     required this.reciterName,
+    this.reciterId,
     required this.rating,
     required this.notes,
     required this.date,
@@ -131,6 +163,7 @@ class HifzSessionRecord {
       verseRepetitionsPlanned: entry['verseRepetitions'] as int? ?? 1,
       rangeRepetitionsPlanned: entry['rangeRepetitions'] as int? ?? 1,
       reciterName: entry['reciterName'] as String? ?? '',
+      reciterId: entry['reciterId'] as int?,
       rating: entry['rating'] as int? ?? 0,
       notes: entry['notes'] as String? ?? '',
       date: entry['date'] as String? ?? DateTime.now().toIso8601String(),
@@ -152,12 +185,18 @@ class HifzSessionRecord {
       verseRepetitionsPlanned: map['verseRepetitionsPlanned'] as int? ?? 1,
       rangeRepetitionsPlanned: map['rangeRepetitionsPlanned'] as int? ?? 1,
       reciterName: map['reciterName'] as String? ?? '',
+      reciterId: map['reciterId'] as int?,
       rating: map['rating'] as int? ?? 0,
       notes: map['notes'] as String? ?? '',
       date: map['date'] as String? ?? '',
       visibleToTeacherIds: (map['visibleToTeacherIds'] as List?)?.map((e) => e as String).toList() ?? const [],
     );
   }
+
+  DateTime get sortTime => DateTime.tryParse(date) ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+  int get plannedCount => (plannedEndAyah - plannedStartAyah + 1).clamp(0, 1000).toInt();
+  int get reachedCount => (reachedEndAyah - reachedStartAyah + 1).clamp(0, 1000).toInt();
 
   Map<String, dynamic> toFirestoreMap() {
     return {
@@ -172,6 +211,7 @@ class HifzSessionRecord {
       'verseRepetitionsPlanned': verseRepetitionsPlanned,
       'rangeRepetitionsPlanned': rangeRepetitionsPlanned,
       'reciterName': reciterName,
+      if (reciterId != null) 'reciterId': reciterId,
       'rating': rating,
       'notes': notes,
       'date': date,

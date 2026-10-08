@@ -133,15 +133,25 @@ class TeacherSyncService extends GetxService {
         .map((snap) => snap.docs.map((d) => StudentSummary.fromMap(d.id, d.data())).toList());
   }
 
-  Stream<List<HifzSessionRecord>> watchStudentSessions(String studentUidToWatch) {
+  /// Sessions a student explicitly shared with [viewerTeacherUid].
+  ///
+  /// Firestore security rules are not filters: the `sessions` read rule only
+  /// allows docs whose `visibleToTeacherIds` contains the teacher, so the
+  /// query MUST carry the same constraint or the whole listen is rejected
+  /// with permission-denied (the old unfiltered query always failed for
+  /// teachers). Sorting happens client-side so no composite index is needed.
+  Stream<List<HifzSessionRecord>> watchStudentSessions(String studentUidToWatch, {required String viewerTeacherUid}) {
     return _db
         .collection(kStudentsCollection)
         .doc(studentUidToWatch)
         .collection('sessions')
-        .orderBy('createdAt', descending: true)
-        .limit(50)
+        .where('visibleToTeacherIds', arrayContains: viewerTeacherUid)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => HifzSessionRecord.fromMap(d.id, d.data())).toList());
+        .map((snap) {
+      final list = snap.docs.map((d) => HifzSessionRecord.fromMap(d.id, d.data())).toList();
+      list.sort((a, b) => b.sortTime.compareTo(a.sortTime));
+      return list;
+    });
   }
 
   Stream<Map<String, DailyActivity>> watchStudentDailyWard(String studentUidToWatch, {int lastNDays = 366}) {
@@ -207,10 +217,8 @@ class TeacherSyncService extends GetxService {
 
   Future<String> activateStudentProfile({
     required String name,
-    required int age,
     required String phone,
     required String whatsapp,
-    required String fatherPhone,
   }) async {
     final uid = await _ensureSignedIn();
     final now = FieldValue.serverTimestamp();
@@ -220,10 +228,12 @@ class TeacherSyncService extends GetxService {
     await _db.collection(kStudentsCollection).doc(uid).set({
       'uid': uid,
       'name': name,
-      'age': age,
       'phone': phone,
       'whatsapp': whatsapp,
-      'fatherPhone': fatherPhone,
+      // Age and guardian phone are no longer collected (Play user-data /
+      // Families policy). Remove any value saved by older app versions.
+      'age': FieldValue.delete(),
+      'fatherPhone': FieldValue.delete(),
       'linkedTeacherIds': existingData?['linkedTeacherIds'] ?? <String>[],
       'currentStreakDays': existingData?['currentStreakDays'] ?? 0,
       'lastActiveDate': existingData?['lastActiveDate'] ?? '',
@@ -239,10 +249,8 @@ class TeacherSyncService extends GetxService {
 
     await _storage.setStudentProfileCache({
       'name': name,
-      'age': age,
       'phone': phone,
       'whatsapp': whatsapp,
-      'fatherPhone': fatherPhone,
     });
 
     _watchMyNotes(uid);
@@ -380,6 +388,7 @@ class TeacherSyncService extends GetxService {
         verseRepetitionsPlanned: base.verseRepetitionsPlanned,
         rangeRepetitionsPlanned: base.rangeRepetitionsPlanned,
         reciterName: base.reciterName,
+        reciterId: base.reciterId,
         rating: base.rating,
         notes: base.notes,
         date: base.date,
@@ -408,10 +417,17 @@ class TeacherSyncService extends GetxService {
     if (uid == null) return;
 
     final today = _todayDateString();
-    final mushafSeconds = _storage.getWardGoal().activeSecondsToday;
-    final hifzSeconds = _sumHifzSecondsForDate(today);
-    final audioSeconds = _storage.getAudioDailySeconds()[today] ?? 0;
-    final total = mushafSeconds + hifzSeconds + audioSeconds;
+    // The ward stopwatch (activeSecondsToday) is already the COMBINED total:
+    // Mushaf reading, Hifz practice and Audio Hub listening all log into it.
+    // Adding hifz/audio on top of it again double-counted those minutes.
+    final total = _storage.getWardGoal().activeSecondsToday;
+    final trackedHifz = _storage.getHifzDailySeconds()[today];
+    // Older app versions didn't track Hifz seconds per day; fall back to the
+    // saved sessions' durations for that case. Each part is capped so the
+    // breakdown can never add up to more than the real total.
+    final int hifzSeconds = min(trackedHifz ?? _sumHifzSecondsForDate(today), total);
+    final int audioSeconds = min(_storage.getAudioDailySeconds()[today] ?? 0, total - hifzSeconds);
+    final int mushafSeconds = max(0, total - hifzSeconds - audioSeconds);
 
     try {
       await _db.collection(kStudentsCollection).doc(uid).collection('daily_ward').doc(today).set({
@@ -428,7 +444,9 @@ class TeacherSyncService extends GetxService {
       final streak = calculateCurrentStreak(history);
       await _db.collection(kStudentsCollection).doc(uid).update({
         'currentStreakDays': streak,
-        'lastActiveDate': today,
+        // Merely opening a screen syncs a 0-second day — only count the day
+        // as "active" once it meets the same threshold the streak uses.
+        if (total >= 60) 'lastActiveDate': today,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {}
@@ -453,15 +471,27 @@ class TeacherSyncService extends GetxService {
   /// Merges a "what is this student doing right now" snapshot onto their
   /// profile doc — additive field, already covered by the existing student
   /// `update` rule. No-op if student mode isn't active.
-  Future<void> setLiveActivity({required String feature, required String label, required int elapsedSeconds}) async {
+  Future<void> setLiveActivity({
+    required String feature,
+    required String label,
+    required int elapsedSeconds,
+    int? chapterId,
+    int? startAyah,
+    int? endAyah,
+  }) async {
     final uid = studentUid.value;
     if (uid == null) return;
     try {
       await _db.collection(kStudentsCollection).doc(uid).update({
         'liveActivity': {
           'feature': feature,
+          // `label` is a language-neutral fallback; teachers render the surah
+          // name from `chapterId` in their own app language.
           'label': label,
           'elapsedSeconds': elapsedSeconds,
+          if (chapterId != null) 'chapterId': chapterId,
+          if (startAyah != null) 'startAyah': startAyah,
+          if (endAyah != null) 'endAyah': endAyah,
           'updatedAt': Timestamp.now(),
         },
       });
@@ -573,11 +603,15 @@ class TeacherSyncService extends GetxService {
   Future<void> _deleteSubcollection(CollectionReference<Map<String, dynamic>> ref) async {
     final snap = await ref.get();
     if (snap.docs.isEmpty) return;
-    final batch = _db.batch();
-    for (final doc in snap.docs) {
-      batch.delete(doc.reference);
+    // Firestore batches are capped at 500 writes.
+    const chunk = 450;
+    for (int i = 0; i < snap.docs.length; i += chunk) {
+      final batch = _db.batch();
+      for (final doc in snap.docs.skip(i).take(chunk)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
     }
-    await batch.commit();
   }
 
   @override

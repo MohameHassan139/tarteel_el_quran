@@ -1,1 +1,1 @@
-// File moved to com.tarteelapps.tarteel_el_quran.MainActivity
+// File moved to com.mohamedhassan.tarteel_el_quran.MainActivity

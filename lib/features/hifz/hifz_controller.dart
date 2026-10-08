@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../core/audio_service.dart';
@@ -10,6 +11,7 @@ import '../../core/download_service.dart';
 import '../../core/app_colors.dart';
 import '../../core/teacher_sync_service.dart';
 import '../../core/reminder_service.dart';
+import '../../core/surah_display.dart';
 import '../../models.dart';
 
 class HifzController extends GetxController {
@@ -58,6 +60,13 @@ class HifzController extends GetxController {
   final RxDouble arabicFontSize = 28.0.obs;
   final RxDouble translationFontSize = 16.0.obs;
 
+  // Tajweed coloring for the workspace ayah (persisted per user).
+  final RxBool showTajweed = false.obs;
+
+  /// True once the audio engine finished every verse/range repetition. The
+  /// last verse stays on screen so the student can save or replay.
+  final RxBool sessionCompleted = false.obs;
+
   // Hifz history progress list
   final RxList<Map<String, dynamic>> hifzHistoryList = <Map<String, dynamic>>[].obs;
 
@@ -65,6 +74,19 @@ class HifzController extends GetxController {
   DateTime? _sessionStartedAt;
   Timer? _liveActivityTimer;
   Timer? _wardStopwatchTimer;
+  int _wardTickCount = 0;
+
+  /// quran_library keeps ONE global Tajweed flag (shared with the Mushaf
+  /// screen and persisted in GetStorage), and `GetSingleAyah` overwrites it on
+  /// every build. We remember the Mushaf's value when the workspace opens and
+  /// put it back when it closes, so Hifz never silently changes the Mushaf.
+  bool? _savedGlobalTajweed;
+  static const String _libTajweedStorageKey = 'isTajweed';
+
+  // Kept so a completed loop can be replayed without refetching URLs.
+  List<String> _lastAudioPaths = const [];
+  HifzLoopConfig? _lastLoopConfig;
+  StreamSubscription? _loopFinishedSub;
 
   StorageService get storage => _storage;
 
@@ -78,11 +100,15 @@ class HifzController extends GetxController {
     loadHistory();
     loadTranslations();
     loadFontSizes();
+    showTajweed.value = _storage.getHifzShowTajweed();
     initQuranData();
 
     // Listen to changes in the active reciting verse
     _activeVerseSub = _audio.activeVerseKey.listen((activeKey) {
       _onActiveVerseChanged(activeKey);
+    });
+    _loopFinishedSub = _audio.hifzLoopFinished.listen((finished) {
+      if (finished && isHifzActive.value) sessionCompleted.value = true;
     });
   }
 
@@ -180,8 +206,8 @@ class HifzController extends GetxController {
   void loadLastSession() {
     final session = _storage.getLastHifzSession();
     if (session != null) {
-      final chId = session['chapterId'] as int;
-      final ch = chapters.firstWhereOrNull((c) => c.id == chId);
+      final chId = session['chapterId'] as int?;
+      final ch = chId == null ? null : chapters.firstWhereOrNull((c) => c.id == chId);
       if (ch != null) {
         selectedChapter.value = ch;
         startAyah.value = session['startAyah'] as int? ?? 1;
@@ -261,10 +287,18 @@ class HifzController extends GetxController {
   }
 
   void _onActiveVerseChanged(String? activeKey) {
-    if (activeKey == null || hifzVerses.isEmpty) {
-      currentRecitingVerse.value = null;
+    if (activeKey == null) {
+      // The engine clears the key whenever it stops (loop finished, or a new
+      // loop being set up). While the workspace is open keep the last verse
+      // on screen instead of falling back to the "initializing" placeholder;
+      // completion itself is signalled by `hifzLoopFinished`.
+      if (!isHifzActive.value || hifzVerses.isEmpty) {
+        currentRecitingVerse.value = null;
+      }
       return;
     }
+    if (hifzVerses.isEmpty) return;
+    sessionCompleted.value = false;
 
     try {
       final verse = hifzVerses.firstWhere((v) => v.verseKey == activeKey);
@@ -286,8 +320,7 @@ class HifzController extends GetxController {
     if (chapter == null) return;
     
     final reciterId = _storage.getEffectiveReciterId();
-    final isAr = Get.locale?.languageCode == 'ar';
-    final chapterName = isAr ? chapter.nameArabic : chapter.nameSimple;
+    final chapterName = SurahDisplay.name(chapter.id, fallback: chapter.nameSimple);
 
     if (_storage.isChapterDownloaded(reciterId, chapter.id, chapter.versesCount)) {
       Get.dialog(
@@ -354,8 +387,10 @@ class HifzController extends GetxController {
       return;
     }
 
+    _rememberGlobalTajweed();
     isLoading.value = true;
     isHifzActive.value = true;
+    sessionCompleted.value = false;
     revealedVerseIds.clear();
     _sessionStartedAt = DateTime.now();
 
@@ -421,16 +456,72 @@ class HifzController extends GetxController {
         delaySeconds: delaySeconds.value,
       );
 
+      _lastAudioPaths = audioPathsOrUrls;
+      _lastLoopConfig = config;
+
       // Start play loop (will play when audio finishes buffering)
-      await _audio.playHifz(chapter, audioPathsOrUrls, config);
+      await _playLoop(chapter, audioPathsOrUrls, config);
       _startLiveActivityTimer(chapter, start, end);
       _startWardStopwatch();
     } catch (e) {
       WakelockPlus.disable();
+      _restoreGlobalTajweed();
       Get.snackbar('hifz_workspace_error'.tr, 'hifz_workspace_error_desc'.trParams({'error': '${e.toString()}'}), snackPosition: SnackPosition.BOTTOM);
       isHifzActive.value = false;
       isLoading.value = false;
     }
+  }
+
+  Future<void> _playLoop(Chapter chapter, List<String> paths, HifzLoopConfig config) {
+    return _audio.playHifz(chapter, paths, config);
+  }
+
+  /// Replays the same range after every repetition finished.
+  Future<void> replayCompletedLoop() async {
+    final chapter = selectedChapter.value;
+    final config = _lastLoopConfig;
+    if (chapter == null || config == null || _lastAudioPaths.isEmpty) return;
+    sessionCompleted.value = false;
+    try {
+      await _playLoop(chapter, _lastAudioPaths, config);
+    } catch (e) {
+      Get.snackbar('hifz_workspace_error'.tr, 'hifz_workspace_error_desc'.trParams({'error': '$e'}), snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tajweed
+  // ---------------------------------------------------------------------------
+
+  /// Tajweed colors only exist in quran_library's default QPC/QCF4 font.
+  bool get isTajweedSupported {
+    try {
+      return QuranCtrl.instance.isQpcV4Enabled;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> toggleTajweed(bool value) async {
+    showTajweed.value = value;
+    await _storage.setHifzShowTajweed(value);
+  }
+
+  void _rememberGlobalTajweed() {
+    if (_savedGlobalTajweed != null) return;
+    try {
+      _savedGlobalTajweed = QuranCtrl.instance.state.isTajweedEnabled.value;
+    } catch (_) {}
+  }
+
+  void _restoreGlobalTajweed() {
+    final saved = _savedGlobalTajweed;
+    if (saved == null) return;
+    _savedGlobalTajweed = null;
+    try {
+      QuranCtrl.instance.state.isTajweedEnabled.value = saved;
+      GetStorage().write(_libTajweedStorageKey, saved);
+    } catch (_) {}
   }
 
   /// Pushes automatic, no-button-needed live progress (current range +
@@ -443,10 +534,17 @@ class HifzController extends GetxController {
     final sync = Get.find<TeacherSyncService>();
     if (!sync.isStudent) return;
 
-    final label = '${chapter.nameArabic} ($start-$end)';
+    final label = '${chapter.nameSimple} ($start-$end)';
     void push() {
       final elapsed = _sessionStartedAt != null ? DateTime.now().difference(_sessionStartedAt!).inSeconds : 0;
-      unawaited(sync.setLiveActivity(feature: 'hifz', label: label, elapsedSeconds: elapsed));
+      unawaited(sync.setLiveActivity(
+        feature: 'hifz',
+        label: label,
+        elapsedSeconds: elapsed,
+        chapterId: chapter.id,
+        startAyah: start,
+        endAyah: end,
+      ));
     }
 
     push(); // Immediate first push so the teacher doesn't wait for the first tick.
@@ -457,17 +555,35 @@ class HifzController extends GetxController {
   /// reading time — the goal now reflects activity across every feature.
   void _startWardStopwatch() {
     _wardStopwatchTimer?.cancel();
+    _wardTickCount = 0;
     _wardStopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      Get.find<ReminderService>().logWardProgress(1);
+      if (Get.isRegistered<ReminderService>()) {
+        unawaited(Get.find<ReminderService>().logWardProgress(1));
+      }
+      unawaited(_storage.logHifzPracticeSeconds(1));
+      _wardTickCount++;
+      if (_wardTickCount % 30 == 0) _syncTodayIfStudent();
     });
   }
 
+  void _syncTodayIfStudent() {
+    if (!Get.isRegistered<TeacherSyncService>()) return;
+    final sync = Get.find<TeacherSyncService>();
+    if (sync.isStudent) unawaited(sync.syncTodayActivity());
+  }
+
   void stopHifz() {
-    _audio.stop();
+    final wasActive = isHifzActive.value;
     WakelockPlus.disable();
     isHifzActive.value = false;
+    sessionCompleted.value = false;
     currentRecitingVerse.value = null;
     hifzVerses.clear();
+    _lastAudioPaths = const [];
+    _lastLoopConfig = null;
+    _audio.stop();
+    _restoreGlobalTajweed();
+    if (wasActive) _syncTodayIfStudent();
 
     _liveActivityTimer?.cancel();
     _liveActivityTimer = null;
@@ -497,6 +613,8 @@ class HifzController extends GetxController {
     final newEntry = {
       'id': '${chapter.id}_${startAyah.value}_${DateTime.now().millisecondsSinceEpoch}',
       'chapterId': chapter.id,
+      // Kept for backward compatibility only — screens resolve the display
+      // name from chapterId in the viewer's language (see SurahDisplay).
       'chapterName': chapter.nameArabic,
       'startAyah': startAyah.value,
       'endAyah': endAyah.value,
@@ -507,6 +625,7 @@ class HifzController extends GetxController {
       'date': DateTime.now().toIso8601String(),
       'rating': rating,
       'notes': notes,
+      'reciterId': selectedReciterId.value,
       'reciterName': getReciterName(selectedReciterId.value),
     };
 
@@ -525,6 +644,7 @@ class HifzController extends GetxController {
 
   Future<void> deleteHistoryItem(int index) async {
     final history = List<Map<String, dynamic>>.from(hifzHistoryList);
+    if (index < 0 || index >= history.length) return;
     history.removeAt(index);
     hifzHistoryList.assignAll(history);
     await _storage.saveHifzHistory(history);
@@ -609,8 +729,15 @@ class HifzController extends GetxController {
 
   @override
   void onClose() {
+    // Leaving the route (e.g. system back gesture) must end the session too:
+    // otherwise the Hifz loop keeps playing with no screen to control it.
+    if (isHifzActive.value) {
+      stopHifz();
+    }
+    _restoreGlobalTajweed();
     WakelockPlus.disable();
     _activeVerseSub?.cancel();
+    _loopFinishedSub?.cancel();
     _liveActivityTimer?.cancel();
     _wardStopwatchTimer?.cancel();
     super.onClose();
