@@ -172,4 +172,64 @@ class DownloadService extends GetxService {
       activeProgress.refresh();
     }
   }
+
+  /// Download a rare recitation single audio file.
+  Future<void> downloadRareRecitation(String id, String url) async {
+    final taskKey = 'rare_$id';
+    if (activeProgress.containsKey(taskKey)) return;
+
+    activeProgress[taskKey] = 0.0;
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final downloadsDir = Directory('${appDir.path}/audio_downloads/rare_recitations');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse(url));
+        final response = await client.send(request).timeout(const Duration(seconds: 45));
+
+        final file = File('${downloadsDir.path}/$id.mp3');
+        final sink = file.openWrite();
+
+        await response.stream.pipe(sink);
+        await sink.flush();
+        await sink.close();
+        client.close();
+
+        await _storageService.setRareRecitationDownloadedPath(id, file.path);
+        activeProgress.remove(taskKey);
+      } catch (e) {
+        client.close();
+        final file = File('${downloadsDir.path}/$id.mp3');
+        if (await file.exists()) {
+          try {
+            await file.delete();
+          } catch (_) {}
+        }
+        rethrow;
+      }
+    } catch (e) {
+      activeProgress.remove(taskKey);
+      rethrow;
+    }
+  }
+
+  /// Delete a downloaded rare recitation from disk and storage.
+  Future<void> deleteRareRecitation(String id) async {
+    final filePath = _storageService.getRareRecitationDownloadedPath(id);
+    if (filePath != null) {
+      final file = File(filePath);
+      if (await file.exists()) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
+      await _storageService.deleteRareRecitationDownloadedPath(id);
+      activeProgress.refresh();
+    }
+  }
 }

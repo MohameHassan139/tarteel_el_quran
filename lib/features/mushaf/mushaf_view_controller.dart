@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:quran_library/quran_library.dart' hide AudioService;
@@ -9,7 +10,7 @@ import '../../core/reminder_service.dart';
 import '../../core/teacher_sync_service.dart';
 import '../../models.dart';
 
-class MushafViewController extends GetxController {
+class MushafViewController extends GetxController with WidgetsBindingObserver {
   final AudioService audio = Get.find<AudioService>();
   final ApiService _api = Get.find<ApiService>();
   final StorageService storage = Get.find<StorageService>();
@@ -21,6 +22,15 @@ class MushafViewController extends GetxController {
   final RxBool isRepeatAyah = false.obs;
   final RxDouble ayahProgress = 0.0.obs;
 
+  // Controls visibility & 3-second auto-hide
+  final RxBool isAudioBarVisible = false.obs;
+  Timer? _audioBarAutoHideTimer;
+  DateTime? _lastScreenPressTime;
+
+  // Student reading tracking
+  int _readingElapsedSeconds = 0;
+  int? currentPageNumber;
+
   List<String> audioPathsOrUrls = [];
   Timer? _stopwatchTimer;
   StreamSubscription? _activeVerseSub;
@@ -31,8 +41,21 @@ class MushafViewController extends GetxController {
   void onInit() {
     super.onInit();
     chapter = Get.arguments as Chapter;
+    WidgetsBinding.instance.addObserver(this);
+
+    // Give Holy Mushaf maximum height possible by hiding controls initially
+    isAudioBarVisible.value = false;
+    if (QuranCtrl.instance.isShowControl.value) {
+      QuranCtrl.instance.isShowControl.value = false;
+      QuranCtrl.instance.update(['isShowControl']);
+    }
+
     _loadAudioFuture = _loadAudio();
     _startStopwatch();
+
+    // Immediately start storing progress in Firebase for students when opening any page
+    currentPageNumber = QuranCtrl.instance.getPageNumberByAyahAndSurahNumber(1, chapter.id);
+    _pushMushafActivityToFirebase();
 
     // Keep screen on if setting is enabled
     if (storage.getKeepScreenOn()) {
@@ -60,19 +83,96 @@ class MushafViewController extends GetxController {
   void _startStopwatch() {
     _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       Get.find<ReminderService>().logWardProgress(1);
-
+      _readingElapsedSeconds++;
       _stopwatchTickCount++;
-      if (_stopwatchTickCount % 30 == 0) {
-        _maybeSyncWardToday();
+
+      // Sync to Firebase periodically (every 15 seconds) while reading without needing audio
+      if (_stopwatchTickCount % 15 == 0) {
+        _pushMushafActivityToFirebase();
       }
     });
   }
 
-  void _maybeSyncWardToday() {
+  /// Called whenever the reader turns or navigates to another page
+  void onPageChanged(int pageNumber) {
+    if (currentPageNumber == pageNumber) return;
+    currentPageNumber = pageNumber;
+    _pushMushafActivityToFirebase();
+  }
+
+  /// Pushes student live activity and daily reading progress to Firebase immediately
+  void _pushMushafActivityToFirebase() {
     if (!Get.isRegistered<TeacherSyncService>()) return;
     final sync = Get.find<TeacherSyncService>();
     if (!sync.isStudent) return;
-    unawaited(sync.syncTodayActivity());
+
+    unawaited(sync.recordMushafPageOpened(
+      chapterId: chapter.id,
+      chapterName: chapter.nameSimple,
+      pageNumber: currentPageNumber ?? 1,
+      elapsedSeconds: _readingElapsedSeconds,
+    ));
+  }
+
+  // ── Screen tap & 3-second auto-hide controls ───────────────────────────
+
+  void handleScreenPress() {
+    final now = DateTime.now();
+    if (_lastScreenPressTime != null &&
+        now.difference(_lastScreenPressTime!) < const Duration(milliseconds: 250)) {
+      return;
+    }
+    _lastScreenPressTime = now;
+
+    if (isAudioBarVisible.value) {
+      hideControls();
+    } else {
+      showControls();
+    }
+  }
+
+  void showControls() {
+    isAudioBarVisible.value = true;
+    if (!QuranCtrl.instance.isShowControl.value) {
+      QuranCtrl.instance.isShowControl.value = true;
+      QuranCtrl.instance.update(['isShowControl']);
+    }
+    resetAutoHideTimer();
+  }
+
+  void hideControls() {
+    _audioBarAutoHideTimer?.cancel();
+    isAudioBarVisible.value = false;
+    if (QuranCtrl.instance.isShowControl.value) {
+      QuranCtrl.instance.isShowControl.value = false;
+      QuranCtrl.instance.update(['isShowControl']);
+    }
+  }
+
+  void resetAutoHideTimer() {
+    _audioBarAutoHideTimer?.cancel();
+    _audioBarAutoHideTimer = Timer(const Duration(seconds: 3), () {
+      hideControls();
+    });
+  }
+
+  void cancelAutoHideTimer() {
+    _audioBarAutoHideTimer?.cancel();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!Get.isRegistered<TeacherSyncService>()) return;
+    final sync = Get.find<TeacherSyncService>();
+    if (!sync.isStudent) return;
+
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      unawaited(sync.clearLiveActivity());
+      unawaited(sync.syncTodayActivity());
+    } else if (state == AppLifecycleState.resumed) {
+      _pushMushafActivityToFirebase();
+    }
   }
 
   void _onActiveVerseChanged(String? key) {
@@ -214,18 +314,27 @@ class MushafViewController extends GetxController {
 
   @override
   void onClose() {
-    // Disable screen wakelock
+    WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
     _stopwatchTimer?.cancel();
+    _audioBarAutoHideTimer?.cancel();
     _activeVerseSub?.cancel();
     _selectedAyahSub?.cancel();
     QuranCtrl.instance.clearExternalHighlights();
+
+    // Clear live activity in Firebase and sync final activity
+    if (Get.isRegistered<TeacherSyncService>()) {
+      final sync = Get.find<TeacherSyncService>();
+      if (sync.isStudent) {
+        unawaited(sync.clearLiveActivity());
+        unawaited(sync.syncTodayActivity());
+      }
+    }
 
     // Reschedule daily reminders to reflect updated progress
     try {
       final goal = storage.getWardGoal();
       Get.find<ReminderService>().scheduleDailyReminder(goal.reminderHour, goal.reminderMinute);
-      _maybeSyncWardToday();
     } catch (_) {}
 
     super.onClose();

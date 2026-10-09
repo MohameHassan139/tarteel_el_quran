@@ -4,9 +4,16 @@ import '../../core/storage_service.dart';
 import '../../core/reminder_service.dart';
 import '../../core/app_colors.dart';
 
+import 'package:flutter/services.dart';
+import '../../core/push_notification_service.dart';
+
 class SettingsController extends GetxController {
   final StorageService _storage = Get.find<StorageService>();
   final ReminderService _reminder = Get.find<ReminderService>();
+
+  String? get fcmToken => Get.isRegistered<PushNotificationService>()
+      ? Get.find<PushNotificationService>().fcmToken.value
+      : null;
 
   final RxInt selectedReciterId = 7.obs;
   final RxString selectedStyle = 'murattal'.obs;
@@ -100,5 +107,28 @@ class SettingsController extends GetxController {
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );
+  }
+
+  Future<void> copyFcmToken() async {
+    final token = fcmToken;
+    if (token != null && token.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: token));
+      Get.snackbar(
+        'fcm_token_copied_title'.tr,
+        'fcm_token_copied_desc'.tr,
+        backgroundColor: AppColors.primary,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      );
+    } else {
+      Get.snackbar(
+        'fcm_token_copied_title'.tr,
+        'fcm_token_not_ready'.tr,
+        backgroundColor: Colors.orange.shade800,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 }

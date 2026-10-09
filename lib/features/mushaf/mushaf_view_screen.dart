@@ -15,6 +15,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
     final maxAyah = controller.chapter.versesCount;
     final textController = TextEditingController();
 
+    controller.cancelAutoHideTimer();
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -64,25 +65,28 @@ class MushafViewScreen extends GetView<MushafViewController> {
               ),
               actions: [
                 TextButton(
-                  child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
                   onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('cancel'.tr, style: const TextStyle(color: Colors.grey)),
                 ),
                 TextButton(
-                  child: Text('ok'.tr, style: const TextStyle(color: AppColors.primary)),
                   onPressed: confirm,
+                  child: Text('ok'.tr, style: const TextStyle(color: AppColors.primary)),
                 ),
               ],
             );
           },
         );
       },
-    );
+    ).then((_) {
+      controller.resetAutoHideTimer();
+    });
   }
 
   /// Build the Verse model on the fly for the tafseer sheet.
   void _showTafseerSheet(BuildContext context, AyahModel ayah) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     TafsirCtrl.instance.initTafsir().then((_) {
+      if (!context.mounted) return;
       ShowTafsirExtension(null).showTafsirOnTap(
         context: context,
         ayahNum: ayah.ayahNumber,
@@ -103,7 +107,7 @@ class MushafViewScreen extends GetView<MushafViewController> {
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: Stack(
         children: [
-          // ── Mushaf Page View ──────────────────────────────────────────
+          // ── Mushaf Page View (Full Height) ───────────────────────────
           Obx(() {
             // Access activeAyahNumber to trigger real-time highlight updates in Obx
             final _ = controller.activeAyahNumber.value;
@@ -112,28 +116,57 @@ class MushafViewScreen extends GetView<MushafViewController> {
             final sp = ctrl.getPageNumberByAyahAndSurahNumber(1, controller.chapter.id);
             final ep = ctrl.getPageNumberByAyahAndSurahNumber(controller.chapter.versesCount, controller.chapter.id);
 
-            return QuranPagesScreen(
-              parentContext: context,
-              surahNumber: controller.chapter.id,
-              startPage: sp,
-              endPage: ep,
-              isDark: isDark,
-              appLanguageCode: isAr ? 'ar' : 'en',
-              useDefaultAppBar: true,
-              isShowAudioSlider: false,
-              ayahSelectedBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
-              ayahSelectedFontColor: isDark ? Colors.white : const Color(0xFF1A0F00),
-              onAyahLongPress: (_, ayah) => _showTafseerSheet(context, ayah),
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: controller.handleScreenPress,
+              child: QuranPagesScreen(
+                parentContext: context,
+                surahNumber: controller.chapter.id,
+                startPage: sp,
+                endPage: ep,
+                isDark: isDark,
+                appLanguageCode: isAr ? 'ar' : 'en',
+                useDefaultAppBar: true,
+                isShowAudioSlider: false,
+                ayahSelectedBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                ayahSelectedFontColor: isDark ? Colors.white : const Color(0xFF1A0F00),
+                onAyahLongPress: (_, ayah) => _showTafseerSheet(context, ayah),
+                onPagePress: controller.handleScreenPress,
+                onPageChanged: (pageIndex) {
+                  controller.onPageChanged(pageIndex + 1);
+                },
+              ),
             );
           }),
 
-          // ── Floating Audio Controls ───────────────────────────────────
-          Positioned(
-            bottom: 12,
-            left: 0,
-            right: 0,
-            child: Center(child: _buildAudioBar(context, isDark)),
-          ),
+          // ── Floating Audio Controls (Hidden by default / toggled / 3s auto-hide) ─
+          Obx(() {
+            final isVisible = controller.isAudioBarVisible.value;
+            return Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                offset: isVisible ? Offset.zero : const Offset(0, 1.4),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  opacity: isVisible ? 1.0 : 0.0,
+                  child: IgnorePointer(
+                    ignoring: !isVisible,
+                    child: Center(
+                      child: Listener(
+                        onPointerDown: (_) => controller.resetAutoHideTimer(),
+                        child: _buildAudioBar(context, isDark),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

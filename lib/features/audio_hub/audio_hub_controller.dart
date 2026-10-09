@@ -140,12 +140,29 @@ class AudioHubController extends GetxController {
     }
   }
 
-  void _applyReciters(List<Mp3QuranReciter> list) {
-    mp3Reciters.assignAll(list);
+  String _getArabicSortKey(String name) {
+    final diacritics = RegExp(r'[\u064B-\u0652\u0670\u0640]');
+    String s = name.replaceAll(diacritics, '').trim();
+    s = s.replaceAll(RegExp(r'[آأإٱ]'), 'ا');
+    return s.toLowerCase();
+  }
 
-    if (list.isNotEmpty) {
+  void _applyReciters(List<Mp3QuranReciter> list) {
+    // Sort reciters alphabetically
+    final sorted = List<Mp3QuranReciter>.from(list)
+      ..sort((a, b) {
+        final keyA = _getArabicSortKey(a.name);
+        final keyB = _getArabicSortKey(b.name);
+        final cmp = keyA.compareTo(keyB);
+        if (cmp != 0) return cmp;
+        return a.name.compareTo(b.name);
+      });
+
+    mp3Reciters.assignAll(sorted);
+
+    if (sorted.isNotEmpty) {
       final savedReciterId = _storage.getSelectedMp3ReciterId();
-      Mp3QuranReciter reciter = list.firstWhere((r) => r.id == savedReciterId, orElse: () => list.first);
+      Mp3QuranReciter reciter = sorted.firstWhere((r) => r.id == savedReciterId, orElse: () => sorted.first);
       selectedReciter.value = reciter;
 
       final savedMoshafId = _storage.getSelectedMp3MoshafId(reciter.id);
@@ -274,7 +291,7 @@ class AudioHubController extends GetxController {
       } catch (e) {
         Get.snackbar(
           'download_failed'.tr,
-          'download_failed_desc'.trParams({'error': '${e.toString()}'}),
+          'download_failed_desc'.trParams({'error': e.toString()}),
           backgroundColor: Colors.red[800],
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,

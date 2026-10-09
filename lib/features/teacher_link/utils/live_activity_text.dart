@@ -16,14 +16,26 @@ String liveActivityFeatureLabel(Map<String, dynamic> activity) {
 
 String liveActivitySubject(Map<String, dynamic> activity) {
   final chapterId = activity['chapterId'] as int?;
+  final pageNumber = activity['pageNumber'] as int?;
   final label = activity['label'] as String? ?? '';
-  if (chapterId == null) return label;
+  final isAr = Get.locale?.languageCode == 'ar';
+
+  if (chapterId == null) {
+    if (pageNumber != null) {
+      return isAr ? 'صفحة $pageNumber' : 'Page $pageNumber';
+    }
+    return label;
+  }
   final start = activity['startAyah'] as int?;
   final end = activity['endAyah'] as int?;
+  final surahName = SurahDisplay.name(chapterId, fallback: label);
   if (start != null && end != null) {
-    return '${SurahDisplay.name(chapterId, fallback: label)} ($start-$end)';
+    return '$surahName ($start-$end)';
   }
-  return SurahDisplay.name(chapterId, fallback: label);
+  if (pageNumber != null) {
+    return isAr ? '$surahName (صفحة $pageNumber)' : '$surahName (Page $pageNumber)';
+  }
+  return surahName;
 }
 
 String liveActivityElapsed(Map<String, dynamic> activity) {

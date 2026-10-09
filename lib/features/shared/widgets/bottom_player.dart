@@ -52,15 +52,32 @@ class BottomPlayer extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple),
-                            style: TextStyle(
-                              color: Get.isDarkMode ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
                           Obx(() {
+                            final title = audio.customTitle.value ??
+                                SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple);
+                            return Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Get.isDarkMode ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            );
+                          }),
+                          Obx(() {
+                            if (audio.customSubtitle.value != null) {
+                              return Text(
+                                audio.customSubtitle.value!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Get.isDarkMode ? Colors.grey : Colors.black54,
+                                  fontSize: 13,
+                                ),
+                              );
+                            }
                             final verseKey = audio.activeVerseKey.value;
                             final text = verseKey != null ? 'ayah_label'.trParams({'key': verseKey}) : 'loading'.tr;
                             return Text(
@@ -150,35 +167,49 @@ class BottomPlayer extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               // Surah and translation detail
-              Text(
-                chapter.nameArabic,
-                style: const TextStyle(
-                  fontFamily: 'UthmanicHafs',
-                  fontSize: 42,
-                  color: AppColors.primary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple),
-                style: TextStyle(
-                  color: Get.isDarkMode ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
-              ),
-              Text(
-                chapter.translatedName,
-                style: TextStyle(
-                  color: Get.isDarkMode ? Colors.grey[400] : Colors.black54,
-                  fontSize: 16,
-                ),
-              ),
+              Obx(() {
+                final isRare = audio.customTitle.value != null;
+                return Column(
+                  children: [
+                    Text(
+                      audio.customTitle.value ?? chapter.nameArabic,
+                      style: TextStyle(
+                        fontFamily: isRare ? null : 'UthmanicHafs',
+                        fontSize: isRare ? 22 : 42,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      audio.customSubtitle.value ??
+                          SurahDisplay.title(chapter.id, fallback: isArLocale ? chapter.nameArabic : chapter.nameSimple),
+                      style: TextStyle(
+                        color: Get.isDarkMode ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isRare ? 18 : 24,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (!isRare)
+                      Text(
+                        chapter.translatedName,
+                        style: TextStyle(
+                          color: Get.isDarkMode ? Colors.grey[400] : Colors.black54,
+                          fontSize: 16,
+                        ),
+                      ),
+                  ],
+                );
+              }),
               const SizedBox(height: 32),
-              // Current Ayah info
+              // Current Ayah / Location info
               Obx(() {
                 final verseKey = audio.activeVerseKey.value;
+                final text = audio.customTitle.value != null
+                    ? (verseKey ?? audio.customSubtitle.value ?? '')
+                    : (verseKey != null ? 'reciting_ayah'.trParams({'key': verseKey}) : 'loading_sync'.tr);
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   decoration: BoxDecoration(
@@ -186,12 +217,13 @@ class BottomPlayer extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    verseKey != null ? 'reciting_ayah'.trParams({'key': verseKey}) : 'loading_sync'.tr,
+                    text,
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 );
               }),

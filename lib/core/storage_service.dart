@@ -326,6 +326,26 @@ class StorageService extends GetxService {
     return files.length == 1; // Always a single file download
   }
 
+  // --- Rare Recitations Storage Helpers ---
+
+  String? getRareRecitationDownloadedPath(String id) {
+    return _downloadedAudioBox.get('rare_recitation_path_$id') as String?;
+  }
+
+  Future<void> setRareRecitationDownloadedPath(String id, String path) async {
+    await _downloadedAudioBox.put('rare_recitation_path_$id', path);
+  }
+
+  Future<void> deleteRareRecitationDownloadedPath(String id) async {
+    await _downloadedAudioBox.delete('rare_recitation_path_$id');
+  }
+
+  bool isRareRecitationDownloaded(String id) {
+    final path = getRareRecitationDownloadedPath(id);
+    if (path == null) return false;
+    return File(path).existsSync();
+  }
+
   // --- Quran Memorization (Hifz) Helpers ---
 
   Map<String, dynamic>? getLastHifzSession() {

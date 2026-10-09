@@ -48,6 +48,8 @@ class StudentSummary {
   final String lastActiveDate;
   final int totalSessionsSynced;
   final Map<String, dynamic>? liveActivity;
+  final int? lastReadPage;
+  final int? lastReadChapterId;
 
   StudentSummary({
     required this.uid,
@@ -58,6 +60,8 @@ class StudentSummary {
     required this.lastActiveDate,
     required this.totalSessionsSynced,
     this.liveActivity,
+    this.lastReadPage,
+    this.lastReadChapterId,
   });
 
   /// "What is the student doing right now", only if it was refreshed recently
@@ -95,6 +99,8 @@ class StudentSummary {
       lastActiveDate: map['lastActiveDate'] as String? ?? '',
       totalSessionsSynced: map['totalSessionsSynced'] as int? ?? 0,
       liveActivity: map['liveActivity'] is Map ? Map<String, dynamic>.from(map['liveActivity'] as Map) : null,
+      lastReadPage: map['lastReadPage'] as int?,
+      lastReadChapterId: map['lastReadChapterId'] as int?,
     );
   }
 }

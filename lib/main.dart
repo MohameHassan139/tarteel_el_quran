@@ -6,6 +6,7 @@ import 'package:quran_library/quran_library.dart' hide AudioService;
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'core/storage_service.dart';
 import 'core/connectivity_service.dart';
@@ -13,6 +14,7 @@ import 'core/api_service.dart';
 import 'core/download_service.dart';
 import 'core/audio_service.dart';
 import 'core/reminder_service.dart';
+import 'core/push_notification_service.dart';
 import 'core/teacher_sync_service.dart';
 import 'core/app_colors.dart';
 import 'routes/app_routes.dart';
@@ -37,6 +39,12 @@ Future<void> initServices() async {
     await Get.putAsync(() => ReminderService().init());
   } catch (e) {
     debugPrint('ReminderService init error: $e');
+  }
+
+  try {
+    await Get.putAsync(() => PushNotificationService().init());
+  } catch (e) {
+    debugPrint('PushNotificationService init error: $e');
   }
 
   // Guarded as a block: AudioService's constructor eagerly resolves
@@ -92,6 +100,7 @@ void main() {
     // Loads local Firebase app config only — no network call, no sign-in.
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     } catch (e) {
       debugPrint('Firebase init error: $e');
     }

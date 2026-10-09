@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../shared/widgets/bottom_player.dart';
 import '../shared/widgets/offline_banner.dart';
+import '../../routes/app_routes.dart';
 import 'audio_hub_controller.dart';
 import '../../core/app_colors.dart';
 import '../../core/surah_display.dart';
@@ -19,12 +20,57 @@ class AudioHubScreen extends GetView<AudioHubController> {
         title: Text('listening_library_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.radio_rounded, color: Colors.amber),
+            tooltip: 'rare_recitations_title'.tr,
+            onPressed: () => Get.toNamed(AppRoutes.RARE_RECITATIONS),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           Column(
             children: [
               const OfflineBanner(),
+              // Rare Recitations Banner
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [const Color(0xFF1E293B), const Color(0xFF334155)]
+                        : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Get.toNamed(AppRoutes.RARE_RECITATIONS),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.radio_rounded, color: Colors.amber, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'rare_recitations_banner'.tr,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.amber),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               // Reciter Info & Bulk Actions
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -56,7 +102,7 @@ class AudioHubScreen extends GetView<AudioHubController> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Line 1: Reciter dropdown
+                          // Line 1: Reciter dropdown & search button
                           Row(
                             children: [
                               Text(
@@ -89,10 +135,18 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                     );
                                   }).toList(),
                                   onChanged: (val) {
-                                    if (val != null)
+                                    if (val != null) {
                                       controller.updateReciter(val);
+                                    }
                                   },
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.search, color: AppColors.primary, size: 20),
+                                tooltip: 'search_reciter'.tr,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                onPressed: () => _showRecitersSearchDialog(context, controller, isDark),
                               ),
                             ],
                           ),
@@ -136,8 +190,9 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       );
                                     }).toList(),
                                     onChanged: (val) {
-                                      if (val != null)
+                                      if (val != null) {
                                         controller.updateMoshaf(val);
+                                      }
                                     },
                                   ),
                                 ),
@@ -421,6 +476,120 @@ class AudioHubScreen extends GetView<AudioHubController> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showRecitersSearchDialog(BuildContext context, AudioHubController controller, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.cardDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            final filtered = controller.mp3Reciters.where((r) {
+              if (query.isEmpty) return true;
+              return r.name.toLowerCase().contains(query.toLowerCase());
+            }).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (ctx, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.record_voice_over_rounded, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'all_reciters'.tr,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${filtered.length}',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hintText: 'search_reciter'.tr,
+                          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                          filled: true,
+                          fillColor: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (val) {
+                          setState(() {
+                            query = val.trim();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView.separated(
+                          controller: scrollController,
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) => Divider(
+                            height: 1,
+                            color: isDark ? AppColors.secondaryDark : AppColors.secondaryLight,
+                          ),
+                          itemBuilder: (ctx, idx) {
+                            final r = filtered[idx];
+                            final isSelected = r.id == controller.selectedReciter.value?.id;
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                r.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.primary : (isDark ? Colors.white : Colors.black87),
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
+                                  : null,
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                controller.updateReciter(r.id);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

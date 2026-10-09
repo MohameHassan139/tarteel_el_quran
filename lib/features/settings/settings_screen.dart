@@ -140,6 +140,18 @@ class SettingsScreen extends GetView<SettingsController> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
                     ListTile(
+                      leading: const Icon(Icons.cloud_sync_outlined, color: AppColors.primary),
+                      title: Text('fcm_token_title'.tr),
+                      subtitle: Text('fcm_token_desc'.tr),
+                      trailing: TextButton.icon(
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: Text('fcm_token_copy'.tr),
+                        onPressed: controller.copyFcmToken,
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+
+                    ListTile(
                       title: Text('app_lang'.tr),
                       subtitle: Text(lang == 'ar' ? 'arabic'.tr : 'english'.tr),
                       trailing: SizedBox(

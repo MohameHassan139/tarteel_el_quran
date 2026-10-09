@@ -13,6 +13,8 @@ import '../features/settings/settings_binding.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/audio_hub/audio_hub_binding.dart';
 import '../features/audio_hub/audio_hub_screen.dart';
+import '../features/rare_recitations/rare_recitations_binding.dart';
+import '../features/rare_recitations/rare_recitations_screen.dart';
 import '../features/teacher_link/teacher_link_binding.dart';
 import '../features/teacher_link/role_onboarding_screen.dart';
 import '../features/teacher_link/student_profile_screen.dart';
@@ -56,6 +58,11 @@ abstract class AppPages {
       name: AppRoutes.AUDIO_HUB,
       page: () => const AudioHubScreen(),
       binding: AudioHubBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.RARE_RECITATIONS,
+      page: () => const RareRecitationsScreen(),
+      binding: RareRecitationsBinding(),
     ),
     GetPage(
       name: AppRoutes.TEACHER_LINK_ONBOARDING,

@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'storage_service.dart';
 import 'reminder_service.dart';
+import 'push_notification_service.dart';
+import 'fcm_sender_service.dart';
+import 'package:flutter/foundation.dart';
 import '../features/teacher_link/teacher_link_models.dart';
 import '../features/teacher_link/utils/streak_utils.dart';
 
@@ -52,6 +55,7 @@ class TeacherSyncService extends GetxService {
       _loadLinkedTeachersCache();
       _watchMyNotes(user.uid);
       unawaited(_loadLinkedTeachersFromCloud(user.uid));
+      unawaited(syncFcmToken(user.uid));
     }
     if (isTeacher) {
       teacherUid.value = user.uid;
@@ -171,7 +175,7 @@ class TeacherSyncService extends GetxService {
     required String fromTeacherName,
     required String text,
   }) async {
-    await _db.collection(kStudentsCollection).doc(studentUidToNotify).collection('notes').add({
+    final docRef = await _db.collection(kStudentsCollection).doc(studentUidToNotify).collection('notes').add({
       'fromTeacherUid': fromTeacherUid,
       'fromTeacherName': fromTeacherName,
       'text': text,
@@ -179,6 +183,47 @@ class TeacherSyncService extends GetxService {
       'readAt': null,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Send push notification directly to student's phone via FCM
+    unawaited(_sendPushNotificationToStudent(
+      studentUid: studentUidToNotify,
+      noteId: docRef.id,
+      fromTeacherName: fromTeacherName,
+      text: text,
+    ));
+  }
+
+  Future<void> _sendPushNotificationToStudent({
+    required String studentUid,
+    required String noteId,
+    required String fromTeacherName,
+    required String text,
+  }) async {
+    try {
+      final doc = await _db.collection(kStudentsCollection).doc(studentUid).get();
+      final fcmToken = doc.data()?['fcmToken'] as String?;
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint('TeacherSync: Student $studentUid does not have an FCM token yet.');
+        return;
+      }
+
+      final teacherTitle = fromTeacherName.isNotEmpty ? 'رسالة من $fromTeacherName' : 'رسالة جديدة من معلمك';
+      await FcmSenderService.sendNotification(
+        toToken: fcmToken,
+        title: teacherTitle,
+        body: text,
+        data: {
+          'type': 'teacher_note',
+          'studentUid': studentUid,
+          'noteId': noteId,
+          'fromTeacherName': fromTeacherName,
+          'text': text,
+        },
+        channelId: 'teacher_note_channel',
+      );
+    } catch (e) {
+      debugPrint('TeacherSync _sendPushNotificationToStudent error: $e');
+    }
   }
 
   Future<void> deactivateTeacherMode() async {
@@ -255,12 +300,29 @@ class TeacherSyncService extends GetxService {
 
     _watchMyNotes(uid);
     unawaited(_loadLinkedTeachersFromCloud(uid));
+    unawaited(syncFcmToken(uid));
 
     if (!_storage.isWardBackfillDone()) {
       unawaited(_backfillWardHistory(uid));
     }
 
     return uid;
+  }
+
+  /// Syncs the FCM device token to Firestore so push notifications reach this student when closed.
+  Future<void> syncFcmToken(String uid, [String? tokenOverride]) async {
+    try {
+      String? token = tokenOverride;
+      if (token == null && Get.isRegistered<PushNotificationService>()) {
+        token = Get.find<PushNotificationService>().fcmToken.value;
+      }
+      if (token != null && token.isNotEmpty) {
+        await _db.collection(kStudentsCollection).doc(uid).set({
+          'fcmToken': token,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
   }
 
   Future<void> _backfillWardHistory(String uid) async {
@@ -413,7 +475,14 @@ class TeacherSyncService extends GetxService {
   /// streak from the combined total. Introspects local storage itself so
   /// every caller just calls this with no arguments.
   Future<void> syncTodayActivity() async {
-    final uid = studentUid.value;
+    var uid = studentUid.value;
+    if (uid == null && isStudent) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        studentUid.value = user.uid;
+        uid = user.uid;
+      }
+    }
     if (uid == null) return;
 
     final today = _todayDateString();
@@ -442,13 +511,13 @@ class TeacherSyncService extends GetxService {
       final history = Map<String, int>.from(_storage.getWardHistory());
       history[today] = total;
       final streak = calculateCurrentStreak(history);
-      await _db.collection(kStudentsCollection).doc(uid).update({
+      await _db.collection(kStudentsCollection).doc(uid).set({
         'currentStreakDays': streak,
         // Merely opening a screen syncs a 0-second day — only count the day
         // as "active" once it meets the same threshold the streak uses.
         if (total >= 60) 'lastActiveDate': today,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -478,28 +547,68 @@ class TeacherSyncService extends GetxService {
     int? chapterId,
     int? startAyah,
     int? endAyah,
+    int? pageNumber,
   }) async {
-    final uid = studentUid.value;
+    var uid = studentUid.value;
+    if (uid == null && isStudent) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        studentUid.value = user.uid;
+        uid = user.uid;
+      }
+    }
     if (uid == null) return;
     try {
-      await _db.collection(kStudentsCollection).doc(uid).update({
+      final data = <String, dynamic>{
         'liveActivity': {
           'feature': feature,
           // `label` is a language-neutral fallback; teachers render the surah
           // name from `chapterId` in their own app language.
           'label': label,
           'elapsedSeconds': elapsedSeconds,
-          if (chapterId != null) 'chapterId': chapterId,
-          if (startAyah != null) 'startAyah': startAyah,
-          if (endAyah != null) 'endAyah': endAyah,
+          ? 'chapterId': chapterId,
+          ? 'startAyah': startAyah,
+          ? 'endAyah': endAyah,
+          ? 'pageNumber': pageNumber,
           'updatedAt': Timestamp.now(),
         },
-      });
+        ? 'lastReadPage': pageNumber,
+        ? 'lastReadChapterId': chapterId,
+        'lastActiveDate': _todayDateString(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      await _db.collection(kStudentsCollection).doc(uid).set(data, SetOptions(merge: true));
     } catch (_) {}
   }
 
+  /// Immediately records that the student opened or turned to [pageNumber] in [chapterId].
+  /// Stores both the live activity and daily activity in Firebase without requiring audio.
+  Future<void> recordMushafPageOpened({
+    required int chapterId,
+    required String chapterName,
+    required int pageNumber,
+    int elapsedSeconds = 0,
+  }) async {
+    if (!isStudent) return;
+    await setLiveActivity(
+      feature: 'mushaf',
+      label: chapterName,
+      elapsedSeconds: elapsedSeconds,
+      chapterId: chapterId,
+      pageNumber: pageNumber,
+    );
+    await syncTodayActivity();
+  }
+
   Future<void> clearLiveActivity() async {
-    final uid = studentUid.value;
+    var uid = studentUid.value;
+    if (uid == null && isStudent) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        studentUid.value = user.uid;
+        uid = user.uid;
+      }
+    }
     if (uid == null) return;
     try {
       await _db.collection(kStudentsCollection).doc(uid).update({'liveActivity': FieldValue.delete()});

@@ -43,6 +43,12 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   final RxInt verseRepeat = 0.obs;
   final RxInt rangeRepeat = 0.obs;
 
+  // Custom / Rare Recitations playback state
+  final Rxn<String> customId = Rxn<String>();
+  final Rxn<String> customTitle = Rxn<String>();
+  final Rxn<String> customSubtitle = Rxn<String>();
+  final Rxn<String> customAudioUrl = Rxn<String>();
+
   // Hifz delay reactive states
   final RxBool isWaitingDelay = false.obs;
   final RxInt delayCountdown = 0.obs;
@@ -441,6 +447,60 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     delayCountdown.value = 0;
     _loopConfig = null;
     _hifzAudioPathsOrUrls = [];
+    customId.value = null;
+    customTitle.value = null;
+    customSubtitle.value = null;
+    customAudioUrl.value = null;
+  }
+
+  /// Play a rare recording or external concert recitation track.
+  Future<void> playRareRecitation({
+    required String id,
+    required String title,
+    required String reciterName,
+    required String audioPathOrUrl,
+    String? location,
+    Chapter? associatedChapter,
+  }) async {
+    await stop();
+    _loopConfig = null;
+    _lastTrackedIndex = null;
+    customId.value = id;
+    customTitle.value = title;
+    customSubtitle.value = reciterName;
+    customAudioUrl.value = audioPathOrUrl;
+
+    final isAr = _storageService.getAppLanguage() == 'ar';
+    final chapter = associatedChapter ??
+        Chapter(
+          id: 0,
+          nameSimple: title,
+          nameComplex: title,
+          nameArabic: title,
+          versesCount: 1,
+          revelationPlace: location ?? '',
+          revelationOrder: 0,
+          translatedName: reciterName,
+        );
+
+    _activeChapter = chapter;
+    activeChapter.value = chapter;
+    activeVerseKey.value = location ?? (isAr ? 'تسجيل نادر' : 'Rare Recording');
+
+    final mediaItem = MediaItem(
+      id: 'rare_$id',
+      title: title,
+      artist: reciterName,
+      album: location ?? (isAr ? 'تلاوات المحافل والنوادر' : 'Rare Concert Recitations'),
+    );
+
+    final AudioSource source = audioPathOrUrl.startsWith('http')
+        ? AudioSource.uri(Uri.parse(audioPathOrUrl), tag: mediaItem)
+        : AudioSource.file(audioPathOrUrl, tag: mediaItem);
+
+    _isCompleted = false;
+    await _player.setAudioSource(source);
+    await _player.play();
   }
 
   Future<void> seek(Duration targetPosition) async {

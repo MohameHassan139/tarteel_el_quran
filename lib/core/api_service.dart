@@ -184,6 +184,16 @@ class ApiService extends GetxService {
         final list = data['reciters'] as List? ?? [];
         final reciters = list.map((e) => Mp3QuranReciter.fromJson(e as Map<String, dynamic>)).toList();
         
+        // Sort reciters alphabetically
+        final diacritics = RegExp(r'[\u064B-\u0652\u0670\u0640]');
+        reciters.sort((a, b) {
+          final keyA = a.name.replaceAll(diacritics, '').replaceAll(RegExp(r'[آأإٱ]'), 'ا').trim().toLowerCase();
+          final keyB = b.name.replaceAll(diacritics, '').replaceAll(RegExp(r'[آأإٱ]'), 'ا').trim().toLowerCase();
+          final cmp = keyA.compareTo(keyB);
+          if (cmp != 0) return cmp;
+          return a.name.compareTo(b.name);
+        });
+
         // Cache the list locally
         await _storageService.cacheMp3QuranReciters(reciters);
         return reciters;
