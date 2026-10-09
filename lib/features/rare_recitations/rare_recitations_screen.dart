@@ -21,19 +21,6 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: [
-          Obx(() {
-            final isArchive = controller.isArchiveSearchMode.value;
-            return IconButton(
-              icon: Icon(
-                isArchive ? Icons.library_music_rounded : Icons.cloud_sync_rounded,
-                color: isArchive ? Colors.amber : null,
-              ),
-              tooltip: isArchive ? 'curated_library'.tr : 'archive_search_tab'.tr,
-              onPressed: () => controller.toggleArchiveMode(!isArchive),
-            );
-          }),
-        ],
       ),
       body: SafeArea(
         child: Stack(
@@ -46,22 +33,12 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
                 // Search Bar & Filter Controls
                 _buildSearchAndFilters(context, isDark),
 
-                // Reciters Horizontal Chips (if not in archive mode)
-                Obx(() {
-                  if (controller.isArchiveSearchMode.value) {
-                    return const SizedBox.shrink();
-                  }
-                  return _buildReciterChips(context, isDark);
-                }),
+                // Reciters Horizontal Chips
+                _buildReciterChips(context, isDark),
 
                 // Recitations List
                 Expanded(
-                  child: Obx(() {
-                    if (controller.isArchiveSearchMode.value) {
-                      return _buildArchiveResultsList(context, isDark);
-                    }
-                    return _buildCuratedList(context, isDark);
-                  }),
+                  child: _buildCuratedList(context, isDark),
                 ),
 
                 // Spacing for BottomPlayer
@@ -82,8 +59,8 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
 
   Widget _buildHeroBanner(BuildContext context, bool isDark) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
@@ -97,18 +74,11 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
           color: Colors.amber.withValues(alpha: 0.3),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.amber.withValues(alpha: 0.2),
               shape: BoxShape.circle,
@@ -116,10 +86,10 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
             child: const Icon(
               Icons.radio_rounded,
               color: Colors.amber,
-              size: 30,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,15 +98,15 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
                   'golden_era_reciters'.tr,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 15,
                     color: Colors.amber,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   'rare_recitations_subtitle'.tr,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: isDark ? Colors.grey[300] : Colors.grey[800],
                   ),
                 ),
@@ -157,17 +127,13 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
             child: TextField(
               controller: controller.searchController,
               decoration: InputDecoration(
-                hintText: controller.isArchiveSearchMode.value
-                    ? 'search_archive_hint'.tr
-                    : 'search_rare_hint'.tr,
+                hintText: 'search_rare_hint'.tr,
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.clear, size: 18),
                   onPressed: () {
                     controller.searchController.clear();
-                    if (!controller.isArchiveSearchMode.value) {
-                      controller.filterRecitations();
-                    }
+                    controller.filterRecitations();
                   },
                 ),
                 filled: true,
@@ -178,11 +144,6 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
                   borderSide: BorderSide.none,
                 ),
               ),
-              onSubmitted: (val) {
-                if (controller.isArchiveSearchMode.value) {
-                  controller.searchArchive(val);
-                }
-              },
             ),
           ),
           const SizedBox(width: 8),
@@ -216,9 +177,9 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
 
   Widget _buildReciterChips(BuildContext context, bool isDark) {
     return SizedBox(
-      height: 48,
+      height: 44,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
         scrollDirection: Axis.horizontal,
         itemCount: RareRecitationsData.legendaryReciters.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -247,80 +208,40 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
   }
 
   Widget _buildCuratedList(BuildContext context, bool isDark) {
-    final list = controller.filteredRecitations;
-
-    if (list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'no_rare_found'.tr,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+    return Obx(() {
+      final list = controller.filteredRecitations;
+      if (list.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'no_rare_found'.tr,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        itemCount: list.length,
+        itemBuilder: (ctx, idx) {
+          final item = list[idx];
+          return _buildRecitationCard(context, item, isDark);
+        },
       );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: list.length,
-      itemBuilder: (ctx, idx) {
-        final item = list[idx];
-        return _buildRecitationCard(context, item, isDark);
-      },
-    );
-  }
-
-  Widget _buildArchiveResultsList(BuildContext context, bool isDark) {
-    if (controller.isSearchingArchive.value) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    final list = controller.archiveResults;
-    if (list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.travel_explore_rounded, size: 64, color: Colors.amber[400]),
-              const SizedBox(height: 16),
-              Text(
-                'search_archive_prompt'.tr,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: list.length,
-      itemBuilder: (ctx, idx) {
-        final item = list[idx];
-        return _buildRecitationCard(context, item, isDark);
-      },
-    );
+    });
   }
 
   Widget _buildRecitationCard(BuildContext context, RareRecitation item, bool isDark) {
@@ -388,7 +309,7 @@ class RareRecitationsScreen extends GetView<RareRecitationsController> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        // Location badge
+                        // Location / Venue badge
                         Flexible(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

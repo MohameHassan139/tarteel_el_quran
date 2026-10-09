@@ -9,14 +9,12 @@ import '../../core/connectivity_service.dart';
 import '../../core/app_colors.dart';
 import 'rare_recitation_model.dart';
 import 'rare_recitations_data.dart';
-import 'rare_recitations_service.dart';
 
 class RareRecitationsController extends GetxController {
   final AudioService _audio = Get.find<AudioService>();
   final DownloadService _download = Get.find<DownloadService>();
   final StorageService _storage = Get.find<StorageService>();
   final ConnectivityService _connectivity = Get.find<ConnectivityService>();
-  final RareRecitationsService _archiveService = RareRecitationsService();
 
   DownloadService get downloadService => _download;
   AudioService get audioService => _audio;
@@ -28,33 +26,19 @@ class RareRecitationsController extends GetxController {
   final RxList<RareRecitation> allCurated = <RareRecitation>[].obs;
   final RxList<RareRecitation> filteredRecitations = <RareRecitation>[].obs;
 
-  // Internet Archive live search mode
-  final RxBool isArchiveSearchMode = false.obs;
-  final RxBool isSearchingArchive = false.obs;
-  final RxList<RareRecitation> archiveResults = <RareRecitation>[].obs;
-
   @override
   void onInit() {
     super.onInit();
     allCurated.assignAll(RareRecitationsData.curatedRecitations);
     filterRecitations();
-    searchController.addListener(_onSearchChanged);
+    searchController.addListener(filterRecitations);
   }
 
   @override
   void onClose() {
-    searchController.removeListener(_onSearchChanged);
+    searchController.removeListener(filterRecitations);
     searchController.dispose();
-    _archiveService.dispose();
     super.onClose();
-  }
-
-  void _onSearchChanged() {
-    if (isArchiveSearchMode.value) {
-      // In archive mode, user explicitly submits search or debounces
-    } else {
-      filterRecitations();
-    }
   }
 
   void setReciterFilter(String reciter) {
@@ -65,15 +49,6 @@ class RareRecitationsController extends GetxController {
   void toggleOnlyDownloaded() {
     onlyDownloaded.value = !onlyDownloaded.value;
     filterRecitations();
-  }
-
-  void toggleArchiveMode(bool enable) {
-    isArchiveSearchMode.value = enable;
-    if (!enable) {
-      filterRecitations();
-    } else if (searchController.text.isNotEmpty && archiveResults.isEmpty) {
-      searchArchive(searchController.text);
-    }
   }
 
   void filterRecitations() {
@@ -109,42 +84,6 @@ class RareRecitationsController extends GetxController {
     }).toList();
 
     filteredRecitations.assignAll(results);
-  }
-
-  Future<void> searchArchive(String query) async {
-    final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) {
-      archiveResults.clear();
-      return;
-    }
-
-    if (!_connectivity.isOnline.value) {
-      Get.snackbar(
-        'no_internet_title'.tr,
-        'archive_requires_internet'.tr,
-        backgroundColor: Colors.orange[900],
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    isSearchingArchive.value = true;
-    try {
-      final results = await _archiveService.searchArchive(cleanQuery);
-      archiveResults.assignAll(results);
-    } catch (e) {
-      archiveResults.clear();
-      Get.snackbar(
-        'search_error'.tr,
-        'archive_search_failed'.tr,
-        backgroundColor: Colors.red[800],
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isSearchingArchive.value = false;
-    }
   }
 
   bool isDownloaded(String id) {
