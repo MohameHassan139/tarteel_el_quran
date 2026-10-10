@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -15,7 +16,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (_) {}
-  debugPrint('FCM background message received: ${message.messageId}');
+  if (kDebugMode) debugPrint('FCM background message received');
 
   // If the message has only a data payload (no standard notification block),
   // display it via local notifications so it still appears on screen while closed.
@@ -114,7 +115,7 @@ class PushNotificationService extends GetxService {
       try {
         final token = await _fcm.getToken();
         fcmToken.value = token;
-        debugPrint('FCM Device Token: $token');
+        if (kDebugMode) debugPrint('FCM Device Token registered');
         if (Get.isRegistered<TeacherSyncService>()) {
           final sync = Get.find<TeacherSyncService>();
           final studentUid = sync.studentUid.value;
@@ -123,13 +124,13 @@ class PushNotificationService extends GetxService {
           }
         }
       } catch (e) {
-        debugPrint('FCM getToken error: $e');
+        if (kDebugMode) debugPrint('FCM getToken error: $e');
       }
 
       // Listen for token updates
       _fcm.onTokenRefresh.listen((newToken) {
         fcmToken.value = newToken;
-        debugPrint('FCM Token refreshed: $newToken');
+        if (kDebugMode) debugPrint('FCM Token refreshed');
         if (Get.isRegistered<TeacherSyncService>()) {
           final sync = Get.find<TeacherSyncService>();
           final studentUid = sync.studentUid.value;
@@ -171,7 +172,7 @@ class PushNotificationService extends GetxService {
 
       // Handle foreground messages with heads-up banner via local notifications
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        debugPrint('FCM foreground message received: ${message.notification?.title ?? message.data['title']}');
+        if (kDebugMode) debugPrint('FCM foreground message received');
         final notification = message.notification;
         final title = notification?.title ?? message.data['title'] as String? ?? 'ترتيل القرآن';
         final body = notification?.body ?? message.data['body'] as String? ?? message.data['message'] as String? ?? '';
@@ -189,25 +190,25 @@ class PushNotificationService extends GetxService {
 
       // Handle notification interaction when app is in background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('FCM message opened from background: ${message.data}');
+        if (kDebugMode) debugPrint('FCM message opened from background');
         _handleNotificationClick(message.data);
       });
 
       // Check if app was launched directly from a terminated state via a notification click
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
-        debugPrint('FCM initial message from terminated state: ${initialMessage.data}');
+        if (kDebugMode) debugPrint('FCM initial message received from terminated state');
         _handleNotificationClick(initialMessage.data);
       }
     } catch (e) {
-      debugPrint('PushNotificationService init error: $e');
+      if (kDebugMode) debugPrint('PushNotificationService init error: $e');
     }
 
     return this;
   }
 
   void _handleNotificationClick(Map<String, dynamic> data) {
-    debugPrint('PushNotificationService notification clicked with data: $data');
+    if (kDebugMode) debugPrint('PushNotificationService notification clicked');
     final type = data['type'] as String?;
     if (type == 'teacher_note') {
       if (Get.currentRoute != AppRoutes.NOTIFICATIONS_INBOX) {

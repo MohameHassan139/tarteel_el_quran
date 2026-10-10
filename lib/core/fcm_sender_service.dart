@@ -51,10 +51,14 @@ class FcmSenderService {
         body: jsonEncode(payload),
       );
 
-      debugPrint('FcmSenderService response [${response.statusCode}]: ${response.body}');
+      if (kDebugMode) {
+        debugPrint('FcmSenderService response: ${response.statusCode}');
+      }
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('FcmSenderService send error: $e');
+      if (kDebugMode) {
+        debugPrint('FcmSenderService send error: $e');
+      }
       return false;
     }
   }

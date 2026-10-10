@@ -204,6 +204,44 @@ class SettingsScreen extends GetView<SettingsController> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Danger Zone: Delete Account (Google Play Requirement)
+              Card(
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Colors.red.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                  ),
+                  title: const Text(
+                    'حذف الحساب',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'حذف حسابك وكافة البيانات السحابية المرتبطة به نهائياً',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.red),
+                  onTap: () => controller.confirmAndDeleteAccount(context),
+                ),
+              ),
+              const SizedBox(height: 32),
             ],
           );
         }),

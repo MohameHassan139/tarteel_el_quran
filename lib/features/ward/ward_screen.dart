@@ -26,15 +26,29 @@ class WardScreen extends GetView<WardController> {
       },
     );
 
+    if (!context.mounted) return;
     if (picked != null) {
-      await controller.setReminderTime(picked.hour, picked.minute);
-      Get.snackbar(
-        'ward_reminder'.tr,
-        'ward_reminder_scheduled'.trParams({'time': picked.format(context)}),
-        backgroundColor: AppColors.primary,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      final formattedTime = picked.format(context);
+      final granted = await controller.setReminderTime(picked.hour, picked.minute);
+      if (context.mounted) {
+        if (!granted) {
+          Get.snackbar(
+            'ward_reminder'.tr,
+            'ward_reminder_no_permission'.tr,
+            backgroundColor: Colors.orange.shade800,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          Get.snackbar(
+            'ward_reminder'.tr,
+            'ward_reminder_scheduled'.trParams({'time': formattedTime}),
+            backgroundColor: AppColors.primary,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      }
     }
   }
 

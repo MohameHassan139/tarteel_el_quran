@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -21,8 +22,7 @@ class ReminderService extends GetxService {
         final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
         tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
       } catch (tzError) {
-        // ignore: avoid_print
-        print('ReminderService: error setting local timezone: $tzError');
+        debugPrint('ReminderService: error setting local timezone: $tzError');
       }
 
       const AndroidInitializationSettings androidSettings =
@@ -73,8 +73,7 @@ class ReminderService extends GetxService {
       unawaited(scheduleDailyReminder(goal.reminderHour, goal.reminderMinute));
     } catch (e) {
       // Non-fatal trace — ensure service registration never breaks app startup
-      // ignore: avoid_print
-      print('ReminderService: init error: $e');
+      debugPrint('ReminderService: init error: $e');
     }
 
     return this;
@@ -100,20 +99,18 @@ class ReminderService extends GetxService {
         );
         if (res != null) granted = granted && res;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ReminderService: requestPermissions error: $e');
+    }
     return granted;
   }
 
 
-  /// Whether exact-time alarms are currently permitted. On Android 12+ this
-  /// requires a one-time user grant in system Settings (requestExactAlarmsPermission
-  /// only opens that screen, it can't wait for the user's answer), so we
-  /// always re-check the live status here rather than assuming a prior
-  /// request succeeded.
+  /// Whether exact-time alarms are currently permitted.
   Future<bool> _canScheduleExact() async {
     final androidPlugin = _notificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin == null) return true; // Not Android (iOS has no such restriction).
+    if (androidPlugin == null) return false;
     try {
       return await androidPlugin.canScheduleExactNotifications() ?? false;
     } catch (_) {
@@ -139,9 +136,10 @@ class ReminderService extends GetxService {
   }
 
   /// Schedule a daily notification at a specific hour and minute for the next 30 days.
-  Future<void> scheduleDailyReminder(int hour, int minute, {bool promptPermission = false}) async {
+  Future<bool> scheduleDailyReminder(int hour, int minute, {bool promptPermission = false}) async {
+    bool hasPermission = true;
     if (promptPermission) {
-      await requestPermissions();
+      hasPermission = await requestPermissions();
     }
     await cancelReminder(); // Remove any previous schedules
 
@@ -234,15 +232,36 @@ class ReminderService extends GetxService {
       final selectedMsg = messages[messageIndex];
       final body = lang == 'ar' ? selectedMsg.textAr : selectedMsg.textEn;
 
-      await _notificationsPlugin.zonedSchedule(
-        id: reminderId + i,
-        title: title,
-        body: body,
-        scheduledDate: scheduledDate,
-        notificationDetails: platformDetails,
-        androidScheduleMode: scheduleMode,
-      );
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id: reminderId + i,
+          title: title,
+          body: body,
+          scheduledDate: scheduledDate,
+          notificationDetails: platformDetails,
+          androidScheduleMode: scheduleMode,
+        );
+      } catch (e) {
+        // Fall back gracefully to inexact schedule if exact alarm fails on Android 14+
+        if (scheduleMode == AndroidScheduleMode.exactAllowWhileIdle) {
+          try {
+            await _notificationsPlugin.zonedSchedule(
+              id: reminderId + i,
+              title: title,
+              body: body,
+              scheduledDate: scheduledDate,
+              notificationDetails: platformDetails,
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            );
+          } catch (fallbackError) {
+            debugPrint('ReminderService: inexact fallback zonedSchedule error: $fallbackError');
+          }
+        } else {
+          debugPrint('ReminderService: zonedSchedule error: $e');
+        }
+      }
     }
+    return hasPermission;
   }
 
   Future<void> cancelReminder() async {

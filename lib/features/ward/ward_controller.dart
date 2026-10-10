@@ -50,14 +50,15 @@ class WardController extends GetxController {
     wardGoal.value = updated;
   }
 
-  Future<void> setReminderTime(int hour, int minute) async {
+  Future<bool> setReminderTime(int hour, int minute) async {
     final updated = wardGoal.value.copyWith(
       reminderHour: hour,
       reminderMinute: minute,
     );
     await _storage.saveWardGoal(updated);
-    await _reminder.scheduleDailyReminder(hour, minute, promptPermission: true);
+    final granted = await _reminder.scheduleDailyReminder(hour, minute, promptPermission: true);
     wardGoal.value = updated;
+    return granted;
   }
 
   bool isDarkMode() {

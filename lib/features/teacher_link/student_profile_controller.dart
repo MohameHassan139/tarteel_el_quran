@@ -4,6 +4,7 @@ import '../../core/app_colors.dart';
 import '../../core/connectivity_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/teacher_sync_service.dart';
+import '../../routes/app_routes.dart';
 
 class StudentProfileController extends GetxController {
   final TeacherSyncService sync = Get.find<TeacherSyncService>();
@@ -130,7 +131,7 @@ class StudentProfileController extends GetxController {
       return;
     }
 
-    await sync.deactivateAndDeleteCloudData();
+    await sync.deleteEntireAccount();
     nameController.clear();
     phoneController.clear();
     whatsappController.clear();
@@ -141,6 +142,7 @@ class StudentProfileController extends GetxController {
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );
+    Get.offAllNamed(AppRoutes.HOME);
   }
 
   @override

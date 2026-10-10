@@ -190,6 +190,7 @@ class AppTranslations extends Translations {
           'no_history_yet': 'لا توجد سجلات سابقة بعد. أكمل ورد اليوم لبدء تسجيل تقدمك التاريخي!',
           'ward_reminder': 'تنبيه الورد',
           'ward_reminder_scheduled': 'تم جدولة المنبه اليومي في تمام الساعة @time',
+          'ward_reminder_no_permission': 'تم حفظ الوقت، يرجى تفعيل إذن الإشعارات من إعدادات الجهاز لتلقي التنبيه',
 
           // Audio Hub Screen
           'listening_library_title': 'مكتبة الاستماع والتحميل',
@@ -609,6 +610,7 @@ class AppTranslations extends Translations {
           'no_history_yet': 'No history records yet. Complete today\'s goal to start recording your progress!',
           'ward_reminder': 'Daily Goal Reminder',
           'ward_reminder_scheduled': 'Daily reminder scheduled at @time',
+          'ward_reminder_no_permission': 'Time saved. Please enable notifications in device settings to receive reminders',
 
           // Audio Hub Screen
           'listening_library_title': 'Listening & Download Library',

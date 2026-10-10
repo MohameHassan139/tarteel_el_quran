@@ -11,9 +11,17 @@ service cloud.firestore {
         get(/databases/$(database)/documents/quran_students/$(studentUid)).data.linkedTeacherIds;
     }
 
+    function isStudentOfTeacher(teacherUid) {
+      return exists(/databases/$(database)/documents/quran_students/$(request.auth.uid))
+        && teacherUid in get(/databases/$(database)/documents/quran_students/$(request.auth.uid)).data.linkedTeacherIds;
+    }
+
     // ---------------- Teachers ----------------
     match /quran_teachers/{teacherUid} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        request.auth.uid == teacherUid ||
+        isStudentOfTeacher(teacherUid)
+      );
       allow create: if isSignedIn()
                     && request.auth.uid == teacherUid
                     && request.resource.data.uid == teacherUid;

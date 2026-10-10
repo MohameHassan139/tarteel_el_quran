@@ -104,6 +104,7 @@ class TeacherSyncService extends GetxService {
     });
     await _db.collection(kShareCodesCollection).doc(code).set({
       'teacherUid': uid,
+      'teacherDisplayName': displayName,
       'createdAt': now,
     });
 
@@ -203,7 +204,9 @@ class TeacherSyncService extends GetxService {
       final doc = await _db.collection(kStudentsCollection).doc(studentUid).get();
       final fcmToken = doc.data()?['fcmToken'] as String?;
       if (fcmToken == null || fcmToken.isEmpty) {
-        debugPrint('TeacherSync: Student $studentUid does not have an FCM token yet.');
+        if (kDebugMode) {
+          debugPrint('TeacherSync: Student does not have an FCM token yet.');
+        }
         return;
       }
 
@@ -222,7 +225,9 @@ class TeacherSyncService extends GetxService {
         channelId: 'teacher_note_channel',
       );
     } catch (e) {
-      debugPrint('TeacherSync _sendPushNotificationToStudent error: $e');
+      if (kDebugMode) {
+        debugPrint('TeacherSync _sendPushNotificationToStudent error: $e');
+      }
     }
   }
 
@@ -358,14 +363,20 @@ class TeacherSyncService extends GetxService {
       if (teacherUidToLink == uid) return 'cannot_link_self';
       if (linkedTeachers.any((t) => t.teacherUid == teacherUidToLink)) return 'already_linked';
 
-      final teacherDoc = await _db.collection(kTeachersCollection).doc(teacherUidToLink).get();
-      final teacherName = teacherDoc.data()?['displayName'] as String? ?? '';
-
       final studentRef = _db.collection(kStudentsCollection).doc(uid);
       await studentRef.update({
         'linkedTeacherIds': FieldValue.arrayUnion([teacherUidToLink]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      String teacherName = codeDoc.data()?['teacherDisplayName'] as String? ?? '';
+      if (teacherName.isEmpty) {
+        try {
+          final teacherDoc = await _db.collection(kTeachersCollection).doc(teacherUidToLink).get();
+          teacherName = teacherDoc.data()?['displayName'] as String? ?? '';
+        } catch (_) {}
+      }
+
       await studentRef.collection('links').doc(teacherUidToLink).set({
         'teacherUid': teacherUidToLink,
         'teacherDisplayName': teacherName,
@@ -559,24 +570,27 @@ class TeacherSyncService extends GetxService {
     }
     if (uid == null) return;
     try {
+      final liveActivity = <String, dynamic>{
+        'feature': feature,
+        // `label` is a language-neutral fallback; teachers render the surah
+        // name from `chapterId` in their own app language.
+        'label': label,
+        'elapsedSeconds': elapsedSeconds,
+        'updatedAt': Timestamp.now(),
+      };
+      if (chapterId != null) liveActivity['chapterId'] = chapterId;
+      if (startAyah != null) liveActivity['startAyah'] = startAyah;
+      if (endAyah != null) liveActivity['endAyah'] = endAyah;
+      if (pageNumber != null) liveActivity['pageNumber'] = pageNumber;
+
       final data = <String, dynamic>{
-        'liveActivity': {
-          'feature': feature,
-          // `label` is a language-neutral fallback; teachers render the surah
-          // name from `chapterId` in their own app language.
-          'label': label,
-          'elapsedSeconds': elapsedSeconds,
-          ? 'chapterId': chapterId,
-          ? 'startAyah': startAyah,
-          ? 'endAyah': endAyah,
-          ? 'pageNumber': pageNumber,
-          'updatedAt': Timestamp.now(),
-        },
-        ? 'lastReadPage': pageNumber,
-        ? 'lastReadChapterId': chapterId,
+        'liveActivity': liveActivity,
         'lastActiveDate': _todayDateString(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
+      if (pageNumber != null) data['lastReadPage'] = pageNumber;
+      if (chapterId != null) data['lastReadChapterId'] = chapterId;
+
       await _db.collection(kStudentsCollection).doc(uid).set(data, SetOptions(merge: true));
     } catch (_) {}
   }
@@ -707,6 +721,89 @@ class TeacherSyncService extends GetxService {
         await FirebaseAuth.instance.currentUser?.delete();
       } catch (_) {}
     }
+  }
+
+  /// Completely deletes the user's account and all Firestore data they own
+  /// (student profile, subcollections: links, sessions, daily_ward, notes;
+  /// and teacher profile with share codes), then deletes their FirebaseAuth user.
+  /// Handles `requires-recent-login` by re-authenticating and retrying.
+  Future<void> deleteEntireAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid ?? studentUid.value ?? teacherUid.value;
+
+    if (uid != null) {
+      // 1. Delete student document and all its subcollections
+      try {
+        final studentRef = _db.collection(kStudentsCollection).doc(uid);
+        await _deleteSubcollection(studentRef.collection('links'));
+        await _deleteSubcollection(studentRef.collection('sessions'));
+        await _deleteSubcollection(studentRef.collection('daily_ward'));
+        await _deleteSubcollection(studentRef.collection('notes'));
+        await studentRef.delete();
+      } catch (e) {
+        debugPrint('TeacherSync: delete student data error: $e');
+      }
+
+      // 2. Delete teacher document and associated share codes
+      try {
+        final teacherRef = _db.collection(kTeachersCollection).doc(uid);
+        final teacherDoc = await teacherRef.get();
+        final shareCode = teacherDoc.data()?['shareCode'] as String?;
+        if (shareCode != null && shareCode.isNotEmpty) {
+          try {
+            await _db.collection(kShareCodesCollection).doc(shareCode).delete();
+          } catch (_) {}
+        }
+        final codesSnap = await _db.collection(kShareCodesCollection).where('teacherUid', isEqualTo: uid).get();
+        for (final doc in codesSnap.docs) {
+          try {
+            await doc.reference.delete();
+          } catch (_) {}
+        }
+        await teacherRef.delete();
+      } catch (e) {
+        debugPrint('TeacherSync: delete teacher data error: $e');
+      }
+
+      // 3. Delete FirebaseAuth user
+      if (user != null) {
+        try {
+          await user.delete();
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'requires-recent-login') {
+            if (user.isAnonymous) {
+              final cred = await FirebaseAuth.instance.signInAnonymously();
+              await cred.user?.delete();
+            } else {
+              rethrow;
+            }
+          } else {
+            rethrow;
+          }
+        }
+      }
+    }
+
+    // 4. Clean up auth session
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+
+    // 5. Clean up local state and Hive caches
+    await _notesSub?.cancel();
+    _notesSub = null;
+    studentUid.value = null;
+    teacherUid.value = null;
+    teacherProfile.value = null;
+    linkedTeachers.clear();
+    unreadNotesCount.value = 0;
+    role.value = '';
+
+    await _storage.setStudentProfileCache({});
+    await _storage.setLinkedTeachersCache([]);
+    await _storage.setTeacherProfileCache({});
+    await _storage.setTeacherLinkRole('');
+    await _storage.setWardBackfillDone(false);
   }
 
   Future<void> _deleteSubcollection(CollectionReference<Map<String, dynamic>> ref) async {
