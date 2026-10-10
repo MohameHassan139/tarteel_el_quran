@@ -40,6 +40,10 @@ class AppTranslations extends Translations {
           'dark_mode_desc': 'تفعيل الخلفيات الداكنة لراحة العينين',
           'keep_screen_on': 'إبقاء الشاشة مضيئة',
           'keep_screen_on_desc': 'منع انطفاء الشاشة أثناء قراءة المصحف الشريف',
+          'audio_hub_continuous_play': 'التشغيل المتتالي (الاستماع والتحميل)',
+          'audio_hub_continuous_play_desc': 'تشغيل سور القرآن تلقائياً بالتتابع أو الاكتفاء بسورة واحدة',
+          'mushaf_continuous_play': 'التشغيل المتتالي (المصحف الشريف)',
+          'mushaf_continuous_play_desc': 'الانتقال إلى السورة التالية تلقائياً عند نهاية السورة الحالية',
 
           // Teacher/Student linking feature
           'teacher_link_title': 'المعلم والطالب',
@@ -455,6 +459,10 @@ class AppTranslations extends Translations {
           'dark_mode_desc': 'Enable dark backgrounds for eye comfort',
           'keep_screen_on': 'Keep Screen On',
           'keep_screen_on_desc': 'Prevent screen sleep while reading Mushaf',
+          'audio_hub_continuous_play': 'Continuous Play (Audio & Download)',
+          'audio_hub_continuous_play_desc': 'Play surahs sequentially or play only one surah',
+          'mushaf_continuous_play': 'Continuous Play (Holy Quran)',
+          'mushaf_continuous_play_desc': 'Automatically advance to the next surah in Mushaf',
 
           // Teacher/Student linking feature
           'teacher_link_title': 'Teacher & Student',

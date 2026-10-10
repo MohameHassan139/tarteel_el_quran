@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:get/get.dart';
 import 'storage_service.dart';
+import 'api_service.dart';
 import 'teacher_sync_service.dart';
 import 'reminder_service.dart';
 import 'surah_display.dart';
 import '../models.dart';
+import 'package:quran_library/quran_library.dart' hide AudioService;
 
 class HifzLoopConfig {
   final String startVerseKey;
@@ -38,6 +38,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   final Rxn<String> activeVerseKey = Rxn<String>();
   final RxBool isPlaying = false.obs;
   final RxBool isBuffering = false.obs;
+  final RxBool isAudioHubPlayback = false.obs;
   final Rx<Duration> position = Duration.zero.obs;
   final Rx<Duration> duration = Duration.zero.obs;
   final RxInt verseRepeat = 0.obs;
@@ -120,7 +121,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   /// disposed when that screen closes) so it keeps counting in the background.
   void _startListeningTicker() {
     _listeningTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final isAudioHubListening = isPlaying.value && onChapterFinished != null;
+      final isAudioHubListening = isPlaying.value && isAudioHubPlayback.value;
 
       if (!isAudioHubListening) {
         if (_audioLiveActivityActive) {
@@ -159,8 +160,8 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.paused) {
-      // If we are NOT in Audio Hub mode, pause the player when app goes to background
-      if (onChapterFinished == null) {
+      // Pause if neither Audio Hub playback nor continuous playback is active
+      if (!isAudioHubPlayback.value && onChapterFinished == null) {
         pause();
       }
     }
@@ -430,7 +431,63 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     }
   }
 
+  Future<void> playNextMushafSurah() async {
+    if (!_storageService.getMushafPlayNext()) return;
+    final current = _activeChapter;
+    if (current == null) return;
+
+    final nextId = (current.id % 114) + 1;
+
+    Chapter? nextChapter;
+    final cached = _storageService.getCachedChapters();
+    if (cached != null && cached.isNotEmpty) {
+      nextChapter = cached.firstWhereOrNull((c) => c.id == nextId);
+    }
+    if (nextChapter == null && QuranCtrl.instance.surahsList.isNotEmpty) {
+      final s = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == nextId);
+      if (s != null) {
+        nextChapter = Chapter(
+          id: s.number,
+          nameSimple: s.englishName,
+          nameComplex: s.englishName,
+          nameArabic: s.name,
+          versesCount: s.ayahsNumber,
+          revelationPlace: s.revelationType,
+          revelationOrder: 0,
+          translatedName: s.englishNameTranslation,
+        );
+      }
+    }
+    if (nextChapter == null) return;
+
+    final reciterId = _storageService.getEffectiveReciterId();
+    final isDownloaded = _storageService.isChapterDownloaded(reciterId, nextChapter.id, nextChapter.versesCount);
+    List<String> audioUrls = [];
+    if (isDownloaded) {
+      audioUrls = _storageService.getChapterAudioPathsOrUrls(reciterId, nextChapter.id, nextChapter.versesCount);
+    }
+    if (audioUrls.isEmpty && Get.isRegistered<ApiService>()) {
+      try {
+        audioUrls = await Get.find<ApiService>().fetchChapterAudio(reciterId, nextChapter.id);
+      } catch (e) {
+        debugPrint('playNextMushafSurah error fetching audio: $e');
+      }
+    }
+
+    if (audioUrls.isEmpty) return;
+
+    isAudioHubPlayback.value = false;
+    onChapterFinished = playNextMushafSurah;
+    await playSurah(
+      nextChapter,
+      audioUrls,
+      clearCompletionCallback: false,
+      keepSessionAlive: true,
+    );
+  }
+
   Future<void> stop() async {
+    isAudioHubPlayback.value = false;
     _resetStateForNewSurah();
     await _player.stop();
     _activeChapter = null;

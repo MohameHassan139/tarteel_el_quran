@@ -15,7 +15,9 @@ class MushafViewController extends GetxController with WidgetsBindingObserver {
   final ApiService _api = Get.find<ApiService>();
   final StorageService storage = Get.find<StorageService>();
 
-  late Chapter chapter;
+  late final Rx<Chapter> rxChapter;
+  Chapter get chapter => rxChapter.value;
+  set chapter(Chapter c) => rxChapter.value = c;
   
   final RxBool isLoading = false.obs;
   final RxnInt activeAyahNumber = RxnInt();
@@ -40,8 +42,13 @@ class MushafViewController extends GetxController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
-    chapter = Get.arguments as Chapter;
+    final initialChapter = Get.arguments as Chapter;
+    rxChapter = initialChapter.obs;
     WidgetsBinding.instance.addObserver(this);
+
+    if (audio.isPlaying.value && audio.activeChapter.value?.id == initialChapter.id && storage.getMushafPlayNext()) {
+      audio.onChapterFinished = playNextSurah;
+    }
 
     // Give Holy Mushaf maximum height possible by hiding controls initially
     isAudioBarVisible.value = false;
@@ -245,13 +252,98 @@ class MushafViewController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      await audio.playSurah(chapter, audioPathsOrUrls);
+      audio.isAudioHubPlayback.value = false;
+      if (storage.getMushafPlayNext()) {
+        audio.onChapterFinished = playNextSurah;
+      } else {
+        audio.onChapterFinished = null;
+      }
+      await audio.playSurah(chapter, audioPathsOrUrls, clearCompletionCallback: false);
+    } catch (e) {
+      Get.snackbar('audio_play_failed'.tr, '$e', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  Future<void> playNextSurah() async {
+    if (!storage.getMushafPlayNext()) return;
+
+    final nextId = (chapter.id % 114) + 1;
+
+    Chapter? nextChapter;
+    final cached = storage.getCachedChapters();
+    if (cached != null && cached.isNotEmpty) {
+      nextChapter = cached.firstWhereOrNull((c) => c.id == nextId);
+    }
+    if (nextChapter == null && QuranCtrl.instance.surahsList.isNotEmpty) {
+      final s = QuranCtrl.instance.surahsList.firstWhereOrNull((s) => s.number == nextId);
+      if (s != null) {
+        nextChapter = Chapter(
+          id: s.number,
+          nameSimple: s.englishName,
+          nameComplex: s.englishName,
+          nameArabic: s.name,
+          versesCount: s.ayahsNumber,
+          revelationPlace: s.revelationType,
+          revelationOrder: 0,
+          translatedName: s.englishNameTranslation,
+        );
+      }
+    }
+    if (nextChapter == null) return;
+
+    rxChapter.value = nextChapter;
+    activeAyahNumber.value = null;
+    ayahProgress.value = 0.0;
+    isRepeatAyah.value = false;
+    audio.setRepeatCurrentAyah(false);
+    QuranCtrl.instance.clearExternalHighlights();
+
+    final sp = QuranCtrl.instance.getPageNumberByAyahAndSurahNumber(1, nextChapter.id);
+    currentPageNumber = sp;
+    try {
+      QuranCtrl.instance.jumpToPage(sp - 1);
+    } catch (_) {}
+    _pushMushafActivityToFirebase();
+
+    isLoading.value = true;
+    try {
+      final reciterId = storage.getEffectiveReciterId();
+      final isDownloaded = storage.isChapterDownloaded(reciterId, nextChapter.id, nextChapter.versesCount);
+      if (isDownloaded) {
+        audioPathsOrUrls = storage.getChapterAudioPathsOrUrls(reciterId, nextChapter.id, nextChapter.versesCount);
+      } else {
+        audioPathsOrUrls = [];
+      }
+      if (audioPathsOrUrls.isEmpty) {
+        audioPathsOrUrls = await _api.fetchChapterAudio(reciterId, nextChapter.id);
+      }
+    } catch (_) {
+      audioPathsOrUrls = [];
+    } finally {
+      isLoading.value = false;
+    }
+
+    if (audioPathsOrUrls.isEmpty) {
+      Get.snackbar('audio'.tr, 'audio_links_offline'.tr, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    try {
+      audio.isAudioHubPlayback.value = false;
+      audio.onChapterFinished = playNextSurah;
+      await audio.playSurah(
+        nextChapter,
+        audioPathsOrUrls,
+        clearCompletionCallback: false,
+        keepSessionAlive: true,
+      );
     } catch (e) {
       Get.snackbar('audio_play_failed'.tr, '$e', snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   void stopPlaySurah() {
+    audio.onChapterFinished = null;
     audio.stop();
     isRepeatAyah.value = false;
     ayahProgress.value = 0.0;
@@ -280,7 +372,13 @@ class MushafViewController extends GetxController with WidgetsBindingObserver {
           await audio.resume();
         }
       } else {
-        await audio.playSurah(chapter, audioPathsOrUrls, initialIndex: ayahNumber - 1);
+        audio.isAudioHubPlayback.value = false;
+        if (storage.getMushafPlayNext()) {
+          audio.onChapterFinished = playNextSurah;
+        } else {
+          audio.onChapterFinished = null;
+        }
+        await audio.playSurah(chapter, audioPathsOrUrls, initialIndex: ayahNumber - 1, clearCompletionCallback: false);
       }
     } catch (e) {
       Get.snackbar('audio_play_failed'.tr, '$e', snackPosition: SnackPosition.BOTTOM);
@@ -321,6 +419,11 @@ class MushafViewController extends GetxController with WidgetsBindingObserver {
     _activeVerseSub?.cancel();
     _selectedAyahSub?.cancel();
     QuranCtrl.instance.clearExternalHighlights();
+
+    // Hand off continuous playback callback to AudioService if audio is still playing
+    if (audio.isPlaying.value && !audio.isAudioHubPlayback.value && storage.getMushafPlayNext()) {
+      audio.onChapterFinished = audio.playNextMushafSurah;
+    }
 
     // Clear live activity in Firebase and sync final activity
     if (Get.isRegistered<TeacherSyncService>()) {

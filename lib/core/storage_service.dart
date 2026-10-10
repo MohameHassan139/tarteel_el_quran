@@ -101,6 +101,22 @@ class StorageService extends GetxService {
     await _settingsBox.put('keep_screen_on', value);
   }
 
+  bool getAudioHubPlayAll() {
+    return _settingsBox.get('audio_hub_play_all', defaultValue: true) as bool;
+  }
+
+  Future<void> setAudioHubPlayAll(bool value) async {
+    await _settingsBox.put('audio_hub_play_all', value);
+  }
+
+  bool getMushafPlayNext() {
+    return _settingsBox.get('mushaf_play_next', defaultValue: true) as bool;
+  }
+
+  Future<void> setMushafPlayNext(bool value) async {
+    await _settingsBox.put('mushaf_play_next', value);
+  }
+
 
   String getAppLanguage() {
     return _settingsBox.get('app_language', defaultValue: 'ar') as String;

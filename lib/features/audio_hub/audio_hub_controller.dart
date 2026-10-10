@@ -483,7 +483,12 @@ class AudioHubController extends GetxController {
     );
 
     try {
-      _audio.onChapterFinished = _playNextChapter;
+      _audio.isAudioHubPlayback.value = true;
+      if (_storage.getAudioHubPlayAll()) {
+        _audio.onChapterFinished = _playNextChapter;
+      } else {
+        _audio.onChapterFinished = null;
+      }
       await _audio.playSurah(
         chapter,
         audioPathsOrUrls,
@@ -502,7 +507,7 @@ class AudioHubController extends GetxController {
       );
 
       // Auto-skip to next surah if there are other surahs in the list
-      if (filteredChapters.length > 1) {
+      if (filteredChapters.length > 1 && _storage.getAudioHubPlayAll()) {
         Future.delayed(const Duration(seconds: 4), () {
           // Only skip if the callback is still active and audio is not playing
           if (_audio.onChapterFinished == _playNextChapter && !_audio.isPlaying.value) {
@@ -514,6 +519,7 @@ class AudioHubController extends GetxController {
   }
 
   Future<void> _playNextChapter({int? failedChapterId}) async {
+    if (!_storage.getAudioHubPlayAll()) return;
     final current = _audio.activeChapter.value ?? 
                     (failedChapterId != null ? chapters.firstWhereOrNull((c) => c.id == failedChapterId) : null);
     if (current == null || filteredChapters.isEmpty) return;

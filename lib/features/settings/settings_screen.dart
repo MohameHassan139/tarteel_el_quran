@@ -129,25 +129,21 @@ class SettingsScreen extends GetView<SettingsController> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
-                    ListTile(
-                      title: Text('test_notifications'.tr),
-                      subtitle: Text('test_notifications_desc'.tr),
-                      trailing: TextButton(
-                        onPressed: controller.triggerTestNotification,
-                        child: Text('test_notifications_action'.tr),
-                      ),
+                    SwitchListTile(
+                      title: Text('audio_hub_continuous_play'.tr),
+                      subtitle: Text('audio_hub_continuous_play_desc'.tr),
+                      value: controller.audioHubPlayAll.value,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (val) => controller.toggleAudioHubPlayAll(val),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
 
-                    ListTile(
-                      leading: const Icon(Icons.cloud_sync_outlined, color: AppColors.primary),
-                      title: Text('fcm_token_title'.tr),
-                      subtitle: Text('fcm_token_desc'.tr),
-                      trailing: TextButton.icon(
-                        icon: const Icon(Icons.copy, size: 16),
-                        label: Text('fcm_token_copy'.tr),
-                        onPressed: controller.copyFcmToken,
-                      ),
+                    SwitchListTile(
+                      title: Text('mushaf_continuous_play'.tr),
+                      subtitle: Text('mushaf_continuous_play_desc'.tr),
+                      value: controller.mushafPlayNext.value,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (val) => controller.toggleMushafPlayNext(val),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
 

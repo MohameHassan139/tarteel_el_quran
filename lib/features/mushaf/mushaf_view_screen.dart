@@ -111,17 +111,19 @@ class MushafViewScreen extends GetView<MushafViewController> {
           Obx(() {
             // Access activeAyahNumber to trigger real-time highlight updates in Obx
             final _ = controller.activeAyahNumber.value;
+            final currentChapter = controller.rxChapter.value;
 
             final ctrl = QuranCtrl.instance;
-            final sp = ctrl.getPageNumberByAyahAndSurahNumber(1, controller.chapter.id);
-            final ep = ctrl.getPageNumberByAyahAndSurahNumber(controller.chapter.versesCount, controller.chapter.id);
+            final sp = ctrl.getPageNumberByAyahAndSurahNumber(1, currentChapter.id);
+            final ep = ctrl.getPageNumberByAyahAndSurahNumber(currentChapter.versesCount, currentChapter.id);
 
             return GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: controller.handleScreenPress,
               child: QuranPagesScreen(
+                key: ValueKey('surah_${currentChapter.id}'),
                 parentContext: context,
-                surahNumber: controller.chapter.id,
+                surahNumber: currentChapter.id,
                 startPage: sp,
                 endPage: ep,
                 isDark: isDark,
