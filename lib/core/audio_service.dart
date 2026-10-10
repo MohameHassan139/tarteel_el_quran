@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:audio_session/audio_session.dart';
 import 'storage_service.dart';
 import 'api_service.dart';
 import 'teacher_sync_service.dart';
@@ -27,7 +28,7 @@ class HifzLoopConfig {
   bool get isActive => startVerseKey.isNotEmpty;
 }
 
-class AudioService extends GetxService with WidgetsBindingObserver {
+class AudioService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
   final AudioPlayer _player = AudioPlayer();
 
@@ -62,6 +63,8 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   StreamSubscription? _currentIndexSub;
   StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
+  StreamSubscription? _interruptionSub;
+  StreamSubscription? _becomingNoisySub;
 
   // Hifz looping runtime state
   HifzLoopConfig? _loopConfig;
@@ -95,22 +98,82 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
-    WidgetsBinding.instance.addObserver(this);
     _init();
+    _initAudioSession();
     _startListeningTicker();
   }
 
   @override
   void onClose() {
-    WidgetsBinding.instance.removeObserver(this);
     _playerStateSub?.cancel();
     _currentIndexSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
+    _interruptionSub?.cancel();
+    _becomingNoisySub?.cancel();
     _delayTimer?.cancel();
     _listeningTimer?.cancel();
     _player.dispose();
     super.onClose();
+  }
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.duckOthers,
+        avAudioSessionMode: AVAudioSessionMode.spokenAudio,
+        avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          flags: AndroidAudioFlags.none,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+        androidWillPauseWhenDucked: false,
+      ));
+
+      // Handle audio interruptions (e.g., incoming phone call vs notification ducking)
+      bool playInterrupted = false;
+      _interruptionSub = session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              // Let system duck audio volume during short notifications without pausing
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              if (isPlaying.value) {
+                playInterrupted = true;
+                pause();
+              }
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              break;
+            case AudioInterruptionType.pause:
+              if (playInterrupted) {
+                playInterrupted = false;
+                resume();
+              }
+              break;
+            case AudioInterruptionType.unknown:
+              break;
+          }
+        }
+      });
+
+      // Handle headphone unplugging
+      _becomingNoisySub = session.becomingNoisyEventStream.listen((_) {
+        pause();
+      });
+    } catch (e) {
+      debugPrint('AudioSession init error: $e');
+    }
   }
 
   /// Tracks Audio Hub listening time and live activity. `onChapterFinished`
@@ -154,17 +217,6 @@ class AudioService extends GetxService with WidgetsBindingObserver {
       ));
       unawaited(sync.syncTodayActivity());
     });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused) {
-      // Pause if neither Audio Hub playback nor continuous playback is active
-      if (!isAudioHubPlayback.value && onChapterFinished == null) {
-        pause();
-      }
-    }
   }
 
   Future<void> Function()? onChapterFinished;
