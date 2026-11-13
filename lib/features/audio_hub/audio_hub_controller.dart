@@ -484,6 +484,8 @@ class AudioHubController extends GetxController {
 
     try {
       _audio.isAudioHubPlayback.value = true;
+      _audio.onNextChapter = () => _playNextChapter(force: true);
+      _audio.onPreviousChapter = () => _playPreviousChapter();
       if (_storage.getAudioHubPlayAll()) {
         _audio.onChapterFinished = _playNextChapter;
       } else {
@@ -495,6 +497,8 @@ class AudioHubController extends GetxController {
         clearCompletionCallback: false,
         mediaItems: [mediaItem],
         keepSessionAlive: keepSessionAlive,
+        reciterName: reciter.name,
+        moshafName: moshaf.name,
       );
     } catch (e) {
       Get.snackbar(
@@ -518,8 +522,8 @@ class AudioHubController extends GetxController {
     }
   }
 
-  Future<void> _playNextChapter({int? failedChapterId}) async {
-    if (!_storage.getAudioHubPlayAll()) return;
+  Future<void> _playNextChapter({int? failedChapterId, bool force = false}) async {
+    if (!force && !_storage.getAudioHubPlayAll()) return;
     final current = _audio.activeChapter.value ?? 
                     (failedChapterId != null ? chapters.firstWhereOrNull((c) => c.id == failedChapterId) : null);
     if (current == null || filteredChapters.isEmpty) return;
@@ -547,6 +551,20 @@ class AudioHubController extends GetxController {
 
     final nextIndex = (currentIndex + 1) % availableFiltered.length;
     await playSurah(availableFiltered[nextIndex], keepSessionAlive: true);
+  }
+
+  Future<void> _playPreviousChapter() async {
+    final current = _audio.activeChapter.value;
+    if (current == null || filteredChapters.isEmpty) return;
+
+    final availableFiltered = filteredChapters.where((c) => isChapterAvailable(c)).toList();
+    if (availableFiltered.isEmpty) return;
+
+    int currentIndex = availableFiltered.indexWhere((c) => c.id == current.id);
+    if (currentIndex == -1) return;
+
+    final prevIndex = (currentIndex - 1 + availableFiltered.length) % availableFiltered.length;
+    await playSurah(availableFiltered[prevIndex], keepSessionAlive: true);
   }
 
   Future<void> updateReciter(int reciterId) async {

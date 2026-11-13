@@ -19,7 +19,9 @@ class ReminderService extends GetxService {
       // Initialize timezone database and set device local timezone
       tz.initializeTimeZones();
       try {
-        final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+        final timeZoneInfo = await FlutterTimezone.getLocalTimezone().timeout(
+          const Duration(seconds: 2),
+        );
         tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
       } catch (tzError) {
         debugPrint('ReminderService: error setting local timezone: $tzError');

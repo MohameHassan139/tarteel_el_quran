@@ -82,50 +82,26 @@ class PushNotificationService extends GetxService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final RxnString fcmToken = RxnString();
 
+  Future<NotificationSettings> requestPermission() async {
+    return await _fcm.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+  }
+
   Future<PushNotificationService> init() async {
     try {
-      // Request push notification permissions (iOS & Android 13+)
-      final settings = await _fcm.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-      debugPrint('FCM authorization status: ${settings.authorizationStatus}');
-
       // Configure foreground presentation options on iOS
       await _fcm.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
-
-      // Subscribe to general topics so broadcast notifications sent from Firebase Console reach all devices
-      try {
-        await _fcm.subscribeToTopic('all');
-        await _fcm.subscribeToTopic('daily_ward');
-      } catch (e) {
-        debugPrint('FCM subscribeToTopic error: $e');
-      }
-
-      // Fetch FCM device registration token
-      try {
-        final token = await _fcm.getToken();
-        fcmToken.value = token;
-        if (kDebugMode) debugPrint('FCM Device Token registered');
-        if (Get.isRegistered<TeacherSyncService>()) {
-          final sync = Get.find<TeacherSyncService>();
-          final studentUid = sync.studentUid.value;
-          if (studentUid != null && token != null) {
-            unawaited(sync.syncFcmToken(studentUid, token));
-          }
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('FCM getToken error: $e');
-      }
 
       // Listen for token updates
       _fcm.onTokenRefresh.listen((newToken) {
@@ -139,6 +115,10 @@ class PushNotificationService extends GetxService {
           }
         }
       });
+
+      // Background non-blocking topic subscriptions and token fetch.
+      // Strictly bounded by timeouts so network/Google Play delays never block app execution.
+      unawaited(_initFcmBackground());
 
       // Create Android notification channels explicitly
       try {
@@ -205,6 +185,32 @@ class PushNotificationService extends GetxService {
     }
 
     return this;
+  }
+
+  Future<void> _initFcmBackground() async {
+    // Subscribe to general topics so broadcast notifications sent from Firebase Console reach all devices
+    try {
+      await _fcm.subscribeToTopic('all').timeout(const Duration(seconds: 5));
+      await _fcm.subscribeToTopic('daily_ward').timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('FCM subscribeToTopic error: $e');
+    }
+
+    // Fetch FCM device registration token
+    try {
+      final token = await _fcm.getToken().timeout(const Duration(seconds: 5));
+      fcmToken.value = token;
+      if (kDebugMode) debugPrint('FCM Device Token registered');
+      if (Get.isRegistered<TeacherSyncService>()) {
+        final sync = Get.find<TeacherSyncService>();
+        final studentUid = sync.studentUid.value;
+        if (studentUid != null && token != null) {
+          unawaited(sync.syncFcmToken(studentUid, token));
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('FCM getToken error: $e');
+    }
   }
 
   void _handleNotificationClick(Map<String, dynamic> data) {

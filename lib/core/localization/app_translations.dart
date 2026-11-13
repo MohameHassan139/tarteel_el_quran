@@ -22,6 +22,7 @@ class AppTranslations extends Translations {
           'ward_subtitle': 'سجل الإنجاز والهدف اليومي',
           'audio_hub_title': 'الاستماع والتحميل',
           'audio_hub_subtitle': 'تلاوات صوتية وتحميل جماعي',
+          'now_playing': 'مشغل التلاوة',
           
           // Settings Screen
           'settings_title': 'الإعدادات العامة',
@@ -424,7 +425,7 @@ class AppTranslations extends Translations {
           'download_requires_internet': 'تحميل التلاوة يتطلب اتصالاً بالإنترنت.',
         },
         'en': {
-          'app_title': 'Tarteel Quran',
+          'app_title': 'Tarteel El Quran',
           'app_subtitle': 'Your Portal for Reading, Listening, and Memorization',
           'daily_ward': 'Daily Goal',
           'minutes_of_target': '@completed of @target minutes',
@@ -442,6 +443,7 @@ class AppTranslations extends Translations {
           'ward_subtitle': 'Daily progress and achievement history',
           'audio_hub_title': 'Listen and Download',
           'audio_hub_subtitle': 'Audio recitations and batch download',
+          'now_playing': 'Now Playing',
 
           // Settings Screen
           'settings_title': 'General Settings',

@@ -24,9 +24,12 @@ class HomeController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    if (Get.isRegistered<ReminderService>()) {
-      Get.find<ReminderService>().requestPermissions();
-    }
+    // Defer permission prompt slightly so it does not compete with initial window focus
+    Future.delayed(const Duration(seconds: 5), () {
+      if (Get.isRegistered<ReminderService>()) {
+        Get.find<ReminderService>().requestPermissions();
+      }
+    });
   }
 
   void loadGoal() {

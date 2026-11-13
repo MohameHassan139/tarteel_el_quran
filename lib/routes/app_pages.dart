@@ -13,6 +13,7 @@ import '../features/settings/settings_binding.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/audio_hub/audio_hub_binding.dart';
 import '../features/audio_hub/audio_hub_screen.dart';
+import '../features/audio_hub/now_playing_screen.dart';
 import '../features/rare_recitations/rare_recitations_binding.dart';
 import '../features/rare_recitations/rare_recitations_screen.dart';
 import '../features/teacher_link/teacher_link_binding.dart';
@@ -58,6 +59,10 @@ abstract class AppPages {
       name: AppRoutes.AUDIO_HUB,
       page: () => const AudioHubScreen(),
       binding: AudioHubBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.AUDIO_PLAYER,
+      page: () => const NowPlayingScreen(),
     ),
     GetPage(
       name: AppRoutes.RARE_RECITATIONS,

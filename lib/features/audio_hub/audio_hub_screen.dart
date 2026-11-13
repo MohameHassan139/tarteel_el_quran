@@ -367,6 +367,10 @@ class AudioHubScreen extends GetView<AudioHubController> {
                             : "${quranLibrarySurah?.englishNameTranslation ?? chapter.translatedName} • ${SurahDisplay.revelationLabel(quranLibrarySurah?.revelationType ?? chapter.revelationPlace)} • ${'verses_count_param'.trParams({'count': '${quranLibrarySurah?.ayahsNumber ?? chapter.versesCount}'})}";
 
                         return ListTile(
+                          onTap: isAvailable ? () {
+                            controller.playSurah(chapter);
+                            Get.toNamed(AppRoutes.AUDIO_PLAYER);
+                          } : null,
                           leading: Container(
                             width: 38,
                             height: 38,
@@ -428,7 +432,10 @@ class AudioHubScreen extends GetView<AudioHubController> {
                                       color: AppColors.primary,
                                       size: 30,
                                     ),
-                                    onPressed: () => controller.playSurah(chapter),
+                                    onPressed: () {
+                                      controller.playSurah(chapter);
+                                      Get.toNamed(AppRoutes.AUDIO_PLAYER);
+                                    },
                                   ),
                                   // Download / progress indicator
                                   if (progress != null || isCurrentBulk)

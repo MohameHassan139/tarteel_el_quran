@@ -51,6 +51,15 @@ class AudioService extends GetxService {
   final Rxn<String> customSubtitle = Rxn<String>();
   final Rxn<String> customAudioUrl = Rxn<String>();
 
+  // Reciter and Moshaf metadata for UI display
+  final Rxn<String> currentReciterName = Rxn<String>();
+  final Rxn<String> currentMoshafName = Rxn<String>();
+  final RxDouble playbackSpeed = 1.0.obs;
+
+  // Next / Previous Surah callbacks
+  Future<void> Function()? onNextChapter;
+  Future<void> Function()? onPreviousChapter;
+
   // Hifz delay reactive states
   final RxBool isWaitingDelay = false.obs;
   final RxInt delayCountdown = 0.obs;
@@ -275,7 +284,14 @@ class AudioService extends GetxService {
   /// just_audio_background media session/foreground notification, and
   /// restarting one from a backgrounded/screen-off state can silently fail
   /// on Android — so the running session must be kept alive across tracks.
-  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {bool clearCompletionCallback = true, List<MediaItem>? mediaItems, bool keepSessionAlive = false, int initialIndex = 0}) async {
+  Future<void> playSurah(Chapter chapter, List<String> audioPathsOrUrls, {
+    bool clearCompletionCallback = true,
+    List<MediaItem>? mediaItems,
+    bool keepSessionAlive = false,
+    int initialIndex = 0,
+    String? reciterName,
+    String? moshafName,
+  }) async {
     if (clearCompletionCallback) {
       onChapterFinished = null;
     }
@@ -288,6 +304,8 @@ class AudioService extends GetxService {
 
     _activeChapter = chapter;
     activeChapter.value = chapter;
+    if (reciterName != null) currentReciterName.value = reciterName;
+    if (moshafName != null) currentMoshafName.value = moshafName;
     _loopConfig = null;
     _lastTrackedIndex = null;
 
@@ -594,6 +612,8 @@ class AudioService extends GetxService {
 
     _activeChapter = chapter;
     activeChapter.value = chapter;
+    currentReciterName.value = reciterName;
+    currentMoshafName.value = location ?? (isAr ? 'تسجيل نادر' : 'Rare Recording');
     activeVerseKey.value = location ?? (isAr ? 'تسجيل نادر' : 'Rare Recording');
 
     final mediaItem = MediaItem(
@@ -615,6 +635,36 @@ class AudioService extends GetxService {
   Future<void> seek(Duration targetPosition) async {
     if (!isWaitingDelay.value) {
       await _player.seek(targetPosition);
+    }
+  }
+
+  Future<void> setPlaybackSpeed(double speed) async {
+    playbackSpeed.value = speed;
+    await _player.setSpeed(speed);
+  }
+
+  Future<void> skipForward([int seconds = 10]) async {
+    final target = position.value + Duration(seconds: seconds);
+    final max = duration.value;
+    await seek(target > max ? max : target);
+  }
+
+  Future<void> skipBackward([int seconds = 10]) async {
+    final target = position.value - Duration(seconds: seconds);
+    await seek(target < Duration.zero ? Duration.zero : target);
+  }
+
+  Future<void> playNextSurah() async {
+    if (onNextChapter != null) {
+      await onNextChapter!();
+    } else {
+      await playNextMushafSurah();
+    }
+  }
+
+  Future<void> playPreviousSurah() async {
+    if (onPreviousChapter != null) {
+      await onPreviousChapter!();
     }
   }
 

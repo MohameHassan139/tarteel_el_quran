@@ -9,6 +9,41 @@ import '../../core/teacher_sync_service.dart';
 class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});
 
+  Widget _buildNotificationsIcon() {
+    if (!Get.isRegistered<TeacherSyncService>()) {
+      return const SizedBox.shrink();
+    }
+    final sync = Get.find<TeacherSyncService>();
+    return Obx(() {
+      if (!sync.isStudent) return const SizedBox.shrink();
+      final unread = sync.unreadNotesCount.value;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary, size: 26),
+            onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS_INBOX),
+          ),
+          if (unread > 0)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  '$unread',
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
   Widget _buildGridItem({
     required BuildContext context,
     required String title,
@@ -111,36 +146,9 @@ class HomeScreen extends GetView<HomeController> {
                         ),
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Obx(() {
-                            final sync = Get.find<TeacherSyncService>();
-                            if (!sync.isStudent) return const SizedBox.shrink();
-                            final unread = sync.unreadNotesCount.value;
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.notifications_outlined, color: AppColors.primary, size: 26),
-                                  onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS_INBOX),
-                                ),
-                                if (unread > 0)
-                                  Positioned(
-                                    right: 6,
-                                    top: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                      child: Text(
-                                        '$unread',
-                                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          }),
+                          _buildNotificationsIcon(),
                           IconButton(
                             icon: const Icon(Icons.settings, color: AppColors.primary, size: 26),
                             onPressed: () => Get.toNamed(AppRoutes.SETTINGS),

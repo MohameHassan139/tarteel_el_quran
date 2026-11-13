@@ -13,6 +13,7 @@ import 'core/connectivity_service.dart';
 import 'core/api_service.dart';
 import 'core/download_service.dart';
 import 'core/audio_service.dart';
+import 'core/sheikh_image_service.dart';
 import 'core/reminder_service.dart';
 import 'core/push_notification_service.dart';
 import 'core/teacher_sync_service.dart';
@@ -23,67 +24,82 @@ import 'routes/app_pages.dart';
 import 'core/localization/app_translations.dart';
 
 Future<void> initServices() async {
+  // 1. Fast local Hive storage: Register instance immediately so Get.find never fails
+  final storageService = StorageService();
+  Get.put<StorageService>(storageService, permanent: true);
   try {
-    await Get.putAsync(() => StorageService().init());
+    await storageService.init().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('StorageService init timed out, using fallback');
+        return storageService;
+      },
+    );
   } catch (e) {
     debugPrint('StorageService init error: $e');
   }
 
+  // 2. Local connectivity state
+  final connectivityService = ConnectivityService();
+  Get.put<ConnectivityService>(connectivityService, permanent: true);
   try {
-    await Get.putAsync(() => ConnectivityService().init());
+    await connectivityService.init().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => connectivityService,
+    );
   } catch (e) {
     debugPrint('ConnectivityService init error: $e');
   }
 
+  // 3. Reminder & local notifications
+  final reminderService = ReminderService();
+  Get.put<ReminderService>(reminderService, permanent: true);
   try {
-    await Get.putAsync(() => ReminderService().init());
+    await reminderService.init().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => reminderService,
+    );
   } catch (e) {
     debugPrint('ReminderService init error: $e');
   }
 
+  // 4. Push notifications (non-blocking FCM)
+  final pushService = PushNotificationService();
+  Get.put<PushNotificationService>(pushService, permanent: true);
   try {
-    await Get.putAsync(() => PushNotificationService().init());
+    await pushService.init().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => pushService,
+    );
   } catch (e) {
     debugPrint('PushNotificationService init error: $e');
   }
 
-  // Guarded as a block: AudioService's constructor eagerly resolves
-  // StorageService via Get.find (see audio_service.dart), which throws if
-  // StorageService failed to register above. Left unguarded, that throw
-  // used to escape all the way out of main() before runApp() ever ran —
-  // an uncaught error at that point kills the whole app process instead of
-  // just disabling a feature, which is exactly what "startup failure" on
-  // the compatibility test farm looks like.
+  // 5. Synchronous core services
   try {
-    Get.put(ApiService());
-    Get.put(DownloadService());
-    if (Get.isRegistered<StorageService>()) {
-      Get.put(AudioService());
-    } else {
-      debugPrint('AudioService skipped: StorageService is not registered.');
-    }
+    Get.put(ApiService(), permanent: true);
+    Get.put(DownloadService(), permanent: true);
+    Get.put(SheikhImageService(), permanent: true);
+    Get.put(AudioService(), permanent: true);
   } catch (e) {
     debugPrint('Core services init error: $e');
   }
 
+  // 6. Teacher Sync Service (purely local Hive role read)
+  final teacherSyncService = TeacherSyncService();
+  Get.put<TeacherSyncService>(teacherSyncService, permanent: true);
   try {
-    // Purely local: reads a role flag from Hive. No Firebase Auth/Firestore
-    // call happens until the user explicitly activates student/teacher mode.
-    await Get.putAsync(() => TeacherSyncService().init());
+    await teacherSyncService.init().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => teacherSyncService,
+    );
   } catch (e) {
     debugPrint('TeacherSyncService init error: $e');
   }
 }
 
-/// Every step below is already individually try/catch-guarded, but that
-/// only protects against synchronous/Dart-level failures at each call site.
-/// `runZonedGuarded` plus the two handlers below are the backstop: any
-/// error that still escapes (e.g. thrown from a callback a plugin schedules
-/// on its own, outside the `await` chain we control) is caught here instead
-/// of taking down the whole app process. On a device farm that cold-launches
-/// the app on many different OEM builds/Android versions, that backstop is
-/// the difference between "one feature silently misbehaves" and a reported
-/// startup crash.
+/// Robust startup ensuring all core services are registered before first frame
+/// to prevent race conditions and "service not found" crashes during monkey tests.
 void main() {
   runZonedGuarded<void>(() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -117,7 +133,10 @@ void main() {
 
     try {
       SurahState.setAudioServiceActive(true);
-      await QuranLibrary.init();
+      await QuranLibrary.init().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => debugPrint('QuranLibrary init timed out'),
+      );
       QuranLibrary.initWordAudio();
     } catch (e) {
       debugPrint('QuranLibrary init error: $e');

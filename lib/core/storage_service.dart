@@ -18,10 +18,16 @@ class StorageService extends GetxService {
 
   Future<StorageService> init() async {
     await Hive.initFlutter();
-    _settingsBox = await _openBoxSafely(settingsBoxName);
-    _quranContentBox = await _openBoxSafely(quranContentBoxName);
-    _downloadedAudioBox = await _openBoxSafely(downloadedAudioBoxName);
-    _wardTrackerBox = await _openBoxSafely(wardTrackerBoxName);
+    final boxes = await Future.wait([
+      _openBoxSafely(settingsBoxName),
+      _openBoxSafely(quranContentBoxName),
+      _openBoxSafely(downloadedAudioBoxName),
+      _openBoxSafely(wardTrackerBoxName),
+    ]);
+    _settingsBox = boxes[0];
+    _quranContentBox = boxes[1];
+    _downloadedAudioBox = boxes[2];
+    _wardTrackerBox = boxes[3];
     return this;
   }
 
@@ -119,7 +125,15 @@ class StorageService extends GetxService {
 
 
   String getAppLanguage() {
-    return _settingsBox.get('app_language', defaultValue: 'ar') as String;
+    final saved = _settingsBox.get('app_language') as String?;
+    if (saved != null) return saved;
+    try {
+      final deviceLang = Get.deviceLocale?.languageCode.toLowerCase();
+      if (deviceLang == 'ar') return 'ar';
+      return 'en';
+    } catch (_) {
+      return 'ar';
+    }
   }
 
   Future<void> setAppLanguage(String lang) async {
@@ -534,6 +548,24 @@ class StorageService extends GetxService {
 
   Future<void> setHifzShowTajweed(bool value) async {
     await _settingsBox.put('hifz_show_tajweed', value);
+  }
+
+  /// Tranquil audio player background theme key
+  String getAudioBackgroundTheme() {
+    return _settingsBox.get('audio_background_theme', defaultValue: 'emerald') as String;
+  }
+
+  Future<void> setAudioBackgroundTheme(String themeKey) async {
+    await _settingsBox.put('audio_background_theme', themeKey);
+  }
+
+  /// Cached local image path or URL for a reciter
+  String? getCachedReciterImage(String reciterKey) {
+    return _settingsBox.get('reciter_img_$reciterKey') as String?;
+  }
+
+  Future<void> setCachedReciterImage(String reciterKey, String localPathOrUrl) async {
+    await _settingsBox.put('reciter_img_$reciterKey', localPathOrUrl);
   }
 
   String _todayDateString() {
